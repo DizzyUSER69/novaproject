@@ -972,6 +972,7 @@ return ImageFetcher
 
 end)() end,
     [21] = function()local wax,script,require=ImportGlobals(21)local ImportGlobals return (function(...)local CodeGen = {
+local CodeGen = {
 	CleanTable = { ['"'] = '\\"', ["\\"] = "\\\\" },
 	IndentTemplate = string.rep(" ", 4),
 }
@@ -1355,17 +1356,11 @@ local mtHook; mtHook = hookmetamethod(game, "__namecall", function(...)
 
 	if rawequal(self, Event) and getnamecallmethod() == "%s" then
 		local Args = table.pack(...)
-		
-		local Result = table.pack(
-			mtHook(self, table.unpack(Args, 1, Args.n))
-		)
-
-		print(`Intercepted (__namecall) {Event.Name}:%s()`, ...)
-
-		return table.unpack(Result, 1, Result.n)
+		print(`Intercepted (Namecall) {Event.Name}:%s`, table.unpack(Args, 1, Args.n))
+		return mtHook(table.unpack(Args, 1, Args.n))
 	end
 
-	return mtHook(...)
+	return mtHook(self, ...)
 end)
 
 local Old%s; Old%s = hookfunction(Event.%s, function(...)
@@ -1373,14 +1368,8 @@ local Old%s; Old%s = hookfunction(Event.%s, function(...)
 
 	if rawequal(self, Event) then
 		local Args = table.pack(...)
-
-		local Result = table.pack(
-			Old%s(table.unpack(Args, 1, Args.n))
-		)
-
-		print(`Intercepted (__index) {Event.Name}:%s()`, self, table.unpack(Result, 1, Result.n))
-
-		return table.unpack(Result, 1, Result.n)
+		print(`Intercepted (Function) {Event.Name}:%s`, table.unpack(Args, 1, Args.n))
+		return Old%s(table.unpack(Args, 1, Args.n))
 	end
 
 	return Old%s(self, ...)
@@ -1399,32 +1388,32 @@ end)]],
 		)
 end
 
-function CreateArgsString(SerializedArgs: string, Args: { [number]: any, n: number }, Prefix: string?)
-	if Args.n == 0 then
-		return ""
+local function CreateArgsString(SerializedArgs: { string }, RawArgs: { [number]: any, n: number }, Separator: string?)
+	local ArgsString = ""
+	local MaxLength = math.max(RawArgs.n, #SerializedArgs)
+
+	for i = 1, MaxLength do
+		ArgsString ..= (SerializedArgs[i] or "nil") .. (i == MaxLength and "" or (Separator or ", "))
 	end
 
-	--// Cyclic Table Handler \\--
-	if string.sub(SerializedArgs, 1, 9) == "(function" then
-		return `{Prefix == nil and "" or Prefix}table.unpack({SerializedArgs}, 1, {Args.n})`
-	end
-
-	--// Normal Table Handler \\--
-	return `{Prefix == nil and "" or Prefix}{string.sub(SerializedArgs, 2, #SerializedArgs - 1)}`
+	return ArgsString
 end
 
 function CodeGen:BuildCallCode(CallInfo: CallInfo)
 	local Type = CallInfo.Type
-
-	local Path = self.GetFullPath(CallInfo.Instance, {
+	local Path, DidInsertNilFunction = self.GetFullPath(CallInfo.Instance, {
 		VariableName = "Event",
 		DisableNilParentHandler = false,
 	})
 	local Method = wax.shared.FunctionForClasses[Type][CallInfo.Instance.ClassName]
-	local SerializedArgs, DidInsertNilFunction = wax.shared.LuaEncode(
-		CallInfo.Arguments,
-		{ Prettify = true, InsertCycles = true, IsArray = true }
-	)
+
+	local SerializedArgs = {}
+	for Index = 1, CallInfo.Arguments.n do
+		SerializedArgs[Index] = wax.shared.LuaEncode(CallInfo.Arguments[Index], {
+			Prettify = false,
+			UseInstancePaths = true,
+		})
+	end
 
 	local CodeGenHeader = CodeGenHeaderTemplate
 	if not wax.shared.SaveManager:GetState("ShowWatermark", true) then
@@ -1433,35 +1422,44 @@ function CodeGen:BuildCallCode(CallInfo: CallInfo)
 
 	if Type == "Incoming" then
 		if DoesUseCallbackValue(CallInfo.Instance) then
-			local PrettifiedExpectedResult, DidInsertNilFunctionInExpectation = wax.shared.LuaEncode(
-				CallInfo.Arguments,
-				{ Prettify = true, InsertCycles = true, IsArray = true }
-			)
-
+			-- :InvokeServer -> Returned value
 			if CallInfo.OriginalInvokeArgs then
-				local PrettifiedOutput, InsertedNilFunction = wax.shared.LuaEncode(
-					CallInfo.OriginalInvokeArgs,
-					{ Prettify = true, InsertCycles = true, IsArray = true }
-				)
-
 				Method = wax.shared.FunctionForClasses.Outgoing[CallInfo.Instance.ClassName]
+
+				local SerializedOriginalArgs = {}
+				for Index = 1, CallInfo.OriginalInvokeArgs.n do
+					SerializedOriginalArgs[Index] = wax.shared.LuaEncode(CallInfo.OriginalInvokeArgs[Index], {
+						Prettify = false,
+						UseInstancePaths = true,
+					})
+				end
+
+				local PrettifiedExpectedResult = wax.shared.LuaEncode(CallInfo.Arguments, {
+					Prettify = true,
+					UseInstancePaths = true,
+				})
+
+				local _, DidInsertNilFunctionInExpectation = self.GetFullPath(CallInfo.Instance, {
+					VariableName = "Event",
+					DisableNilParentHandler = false,
+					OmitNilFunctionGetterCodeGeneration = true,
+				})
 
 				return CodeGenHeader
 					.. string.format(
 						[[%s%s
-local Result = Event:%s(%s)
+Event:%s(%s)
 
+--[[
+Expected Result:
 local ExpectedResult = table.unpack(%s)
-
+]]
 ]],
-						(
-							(InsertedNilFunction or DidInsertNilFunction or DidInsertNilFunctionInExpectation)
-								and GetNilCode .. "\n\n"
-							or ""
-						),
+						(DidInsertNilFunction or DidInsertNilFunctionInExpectation and GetNilCode .. "\n\n" or ""),
 						Path,
 						Method,
-						CreateArgsString(PrettifiedOutput, CallInfo.OriginalInvokeArgs),
+						CreateArgsString(SerializedOriginalArgs, CallInfo.OriginalInvokeArgs),
+
 						PrettifiedExpectedResult
 					)
 			end
@@ -1470,17 +1468,11 @@ local ExpectedResult = table.unpack(%s)
 				.. string.format(
 					[[%s%s
 local Callback = getcallbackvalue(Event, "%s")
-Callback(%s)
-
-local ExpectedResult = table.unpack(%s)
-
-]],
-					(DidInsertNilFunction or DidInsertNilFunctionInExpectation and GetNilCode .. "\n\n" or ""),
+Callback(%s)]],
+					(DidInsertNilFunction and GetNilCode .. "\n\n" or ""),
 					Path,
 					Method,
-					CreateArgsString(SerializedArgs, CallInfo.Arguments),
-
-					PrettifiedExpectedResult
+					CreateArgsString(SerializedArgs, CallInfo.Arguments)
 				)
 		end
 

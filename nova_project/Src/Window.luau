@@ -3799,21 +3799,36 @@ function CreateCallFrame(CallInfo)
 					end
 				end,
 			},
-			{
-				Text = "Copy Intercept Code",
-				Icon = "shield-alert",
-				Callback = function()
-					local Code = CodeGen:BuildHookCode(CallInfo, CurrentTab.Name)
-					local Success, Error = pcall(setclipboard, Code)
+				{
+					Text = "Copy Calling Code",
+					Icon = "forward",
+					Callback = function()
+						local Code = CodeGen:BuildCallCode(CallInfo, CurrentTab.Name)
+						local Success, Error = pcall(setclipboard, Code)
 
-					if Success then
-						wax.shared.Sonner.success("Copied code to clipboard")
-					else
-						wax.shared.Sonner.error("Failed to copy code to clipboard")
-						warn("Failed to copy code to clipboard", Error)
-					end
-				end,
-			},
+						if Success then
+							wax.shared.Sonner.success("Copied code to clipboard")
+						else
+							wax.shared.Sonner.error("Failed to copy code to clipboard")
+							warn("Failed to copy code to clipboard", Error)
+						end
+					end,
+				},
+				{
+					Text = "Copy Intercept Code",
+					Icon = "shield-alert",
+					Callback = function()
+						local Code = CodeGen:BuildHookCode(CallInfo, CurrentTab.Name)
+						local Success, Error = pcall(setclipboard, Code)
+
+						if Success then
+							wax.shared.Sonner.success("Copied code to clipboard")
+						else
+							wax.shared.Sonner.error("Failed to copy code to clipboard")
+							warn("Failed to copy code to clipboard", Error)
+						end
+					end,
+				},
 			{
 				Text = "Copy Remote Path",
 				Icon = "package-search",
