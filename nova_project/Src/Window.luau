@@ -24,6 +24,7 @@ local Helper = require(UIUtils.Helper)
 local Resize = require(UIUtils.Resize)
 local Drag = require(UIUtils.Drag)
 local LoadingScreen = require(UIUtils.LoadingScreen)
+local Constants = require(UIUtils.Constants)
 
 local PaginationHelper = Pagination.new({
 	ItemsPerPage = wax.shared.SaveManager:GetState("MaxItemPerPages", 20),
@@ -1580,9 +1581,46 @@ CreateSettingsCheckbox("ShowWatermark", {
 	Section = CodeGenSection,
 })
 
-local MainSection = CreateSettingsSection("Main")
+	local ThemeSection = CreateSettingsSection("Theme & Visuals")
 
-CreateSettingsDropdown("WindowDPIScale", {
+	local function RefreshUI()
+		MainFrame.BackgroundColor3 = Constants.Colors.Background.Primary
+		TopBar.BackgroundColor3 = Constants.Colors.Border.Primary
+		
+		-- Update all strokes if theme is Nova
+		local isNova = wax.shared.SaveManager:GetState("Theme", "Default") == "Nova"
+		local borderColor = if isNova then Constants.Colors.Accent.Primary else Constants.Colors.Border.Primary
+		
+		MainFrame.UIStroke.Color = borderColor
+		SettingsFrame.UIStroke.Color = borderColor
+		SearchFrame.UIStroke.Color = borderColor
+		
+		wax.shared.Sonner.success("Theme applied successfully!")
+	end
+
+	CreateSettingsDropdown("Theme", {
+		Text = "UI Theme",
+		Values = {
+			"Default",
+			"Nova"
+		},
+		Default = "Default",
+		Section = ThemeSection,
+		Callback = function(value)
+			Constants.ApplyTheme(value)
+			RefreshUI()
+		end
+	})
+
+	CreateSettingsCheckbox("CustomNotifications", {
+		Text = "Custom Notifications",
+		Default = true,
+		Section = ThemeSection,
+	})
+
+	local MainSection = CreateSettingsSection("Main")
+	
+	CreateSettingsDropdown("WindowDPIScale", {
 	Text = "DPI Scale",
 	Values = {
 		"50%",
@@ -4162,7 +4200,18 @@ wax.shared.Connect(wax.shared.UserInputService.InputBegan:Connect(function(Input
 end))
 
 	task.spawn(function()
+		local savedTheme = wax.shared.SaveManager:GetState("Theme", "Default")
+		Constants.ApplyTheme(savedTheme)
+		
 		LoadingScreen.show()
+		
+		-- Apply theme to main components before showing
+		MainFrame.BackgroundColor3 = Constants.Colors.Background.Primary
+		local isNova = savedTheme == "Nova"
+		if isNova then
+			MainFrame.UIStroke.Color = Constants.Colors.Accent.Primary
+		end
+		
 		MainFrame.Visible = true
 	end)
 

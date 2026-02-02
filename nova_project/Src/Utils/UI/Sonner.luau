@@ -195,15 +195,20 @@ local function ProcessQueue()
 end
 
 local function toast(image, text, internalTime, removeCallback)
-	table.insert(Sonner.PendingQueue, {
-		image = image,
-		text = text,
-		internalTime = internalTime,
-		removeCallback = removeCallback,
-	})
+		local useNotifications = wax.shared.SaveManager:GetState("CustomNotifications", true)
+		if not useNotifications then
+			return
+		end
 
-	task.spawn(ProcessQueue)
-end
+		table.insert(Sonner.PendingQueue, {
+			image = image,
+			text = text,
+			internalTime = internalTime,
+			removeCallback = removeCallback,
+		})
+	
+		task.spawn(ProcessQueue)
+	end
 
 function Sonner.info(text, internalTime)
 	toast("info", text, internalTime)
