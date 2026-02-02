@@ -1585,18 +1585,22 @@ wax.shared.ReplayCallInfo = function(CallInfo: CallInfo)
 
 		assert(firesignal or getconnections, "No firesignal or getconnections found")
 
+		local Args = CallInfo.Arguments
+		local n = Args.n or wax.shared.GetTableLength(Args)
 		if firesignal then
-			firesignal(CallInfo.Instance[Method], table.unpack(CallInfo.Arguments, 1, CallInfo.Arguments.n))
+			firesignal(CallInfo.Instance[Method], table.unpack(Args, 1, n))
 		elseif getconnections then
 			for _, conn in getconnections(CallInfo.Instance[Method]) do
-				conn:Fire(table.unpack(CallInfo.Arguments, 1, CallInfo.Arguments.n))
+				conn:Fire(table.unpack(Args, 1, n))
 			end
 		end
 
 		return
 	end
 
-	CallInfo.Instance[Method](CallInfo.Instance, table.unpack(CallInfo.Arguments, 1, CallInfo.Arguments.n))
+	local Args = CallInfo.Arguments
+	local n = Args.n or wax.shared.GetTableLength(Args)
+	CallInfo.Instance[Method](CallInfo.Instance, table.unpack(Args, 1, n))
 end
 
 return CodeGen

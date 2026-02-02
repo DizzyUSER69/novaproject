@@ -1590,20 +1590,26 @@ CreateSettingsCheckbox("ShowWatermark", {
 
 	local ThemeSection = CreateSettingsSection("Theme & Visuals")
 
-	local function RefreshUI()
-		MainFrame.BackgroundColor3 = Constants.Colors.Background.Primary
-		TopBar.BackgroundColor3 = Constants.Colors.Border.Primary
-		
-		-- Update all strokes if theme is Nova
-		local isNova = wax.shared.SaveManager:GetState("Theme", "Default") == "Nova"
-		local borderColor = if isNova then Constants.Colors.Accent.Primary else Constants.Colors.Border.Primary
-		
-		MainFrame.UIStroke.Color = borderColor
-		SettingsFrame.UIStroke.Color = borderColor
-		SearchFrame.UIStroke.Color = borderColor
-		
-		wax.shared.Sonner.success("Theme applied successfully!")
-	end
+		local function RefreshUI()
+			MainFrame.BackgroundColor3 = Constants.Colors.Background.Primary
+			TopBar.BackgroundColor3 = Constants.Colors.Border.Primary
+			
+			-- Update all strokes if theme is Nova
+			local isNova = wax.shared.SaveManager:GetState("Theme", "Default") == "Nova"
+			local borderColor = if isNova then Constants.Colors.Accent.Primary else Constants.Colors.Border.Primary
+			
+			MainFrame.UIStroke.Color = borderColor
+			SettingsFrame.UIStroke.Color = borderColor
+			SearchFrame.UIStroke.Color = borderColor
+
+			-- Refresh other containers
+			RemoteTabContainer.BackgroundColor3 = Constants.Colors.Border.Primary
+			RemoteListWrapper.BackgroundColor3 = Constants.Colors.Border.Primary
+			RemoteListLine.BackgroundColor3 = Constants.Colors.Border.Primary
+			LogsPagination.BackgroundColor3 = Constants.Colors.Border.Primary
+			
+			wax.shared.Sonner.success("Theme applied successfully!")
+		end
 
 	CreateSettingsDropdown("Theme", {
 		Text = "UI Theme",
@@ -4206,23 +4212,16 @@ wax.shared.Connect(wax.shared.UserInputService.InputBegan:Connect(function(Input
 	end
 end))
 
-	task.spawn(function()
-		local savedTheme = wax.shared.SaveManager:GetState("Theme", "Default")
-		Constants.ApplyTheme(savedTheme)
-		
-		LoadingScreen.show()
-		
-		-- Apply theme to all main components before showing
-		local isNova = savedTheme == "Nova"
-		local borderColor = if isNova then Constants.Colors.Accent.Primary else Constants.Colors.Border.Primary
-		
-		MainFrame.BackgroundColor3 = Constants.Colors.Background.Primary
-		MainFrame.UIStroke.Color = borderColor
-		TopBar.BackgroundColor3 = Constants.Colors.Border.Primary
-		SettingsFrame.UIStroke.Color = borderColor
-		SearchFrame.UIStroke.Color = borderColor
-		
-		MainFrame.Visible = true
-	end)
+		task.spawn(function()
+			local savedTheme = wax.shared.SaveManager:GetState("Theme", "Default")
+			Constants.ApplyTheme(savedTheme)
+			
+			LoadingScreen.show()
+			
+			-- Apply theme to all main components before showing
+			RefreshUI()
+			
+			MainFrame.Visible = true
+		end)
 
 	return {}
