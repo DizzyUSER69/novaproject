@@ -587,50 +587,43 @@ end
 wax.shared.ReplayCallInfo = function(CallInfo: CallInfo)
 	local Type = CallInfo.Type
 	local Method = wax.shared.FunctionForClasses[Type][CallInfo.Instance.ClassName]
-	local Args = CallInfo.Arguments
-	local n = Args.n or wax.shared.GetTableLength(Args)
 
 	if Type == "Incoming" then
 		if DoesUseCallbackValue(CallInfo.Instance) then
 			if CallInfo.OriginalInvokeArgs then
 				Method = wax.shared.FunctionForClasses.Outgoing[CallInfo.Instance.ClassName]
-				local InvokeArgs = CallInfo.OriginalInvokeArgs
-				local InvokeN = InvokeArgs.n or wax.shared.GetTableLength(InvokeArgs)
 
-				return CallInfo.Instance[Method](
+				CallInfo.Instance[Method](
 					CallInfo.Instance,
-					table.unpack(InvokeArgs, 1, InvokeN)
+					table.unpack(CallInfo.OriginalInvokeArgs, 1, CallInfo.OriginalInvokeArgs.n)
 				)
-			end
-
-			local Success, Callback = pcall(getcallbackvalue, CallInfo.Instance, Method)
-			if not Success or typeof(Callback) ~= "function" then
-				Callback = CallInfo.Instance[Method]
-			end
-
-			if typeof(Callback) ~= "function" then
 				return
 			end
 
-			return Callback(table.unpack(Args, 1, n))
+			local Callback = getcallbackvalue(CallInfo.Instance, Method)
+
+			if not Callback then
+				return
+			end
+
+			Callback(table.unpack(CallInfo.Arguments, 1, CallInfo.Arguments.n))
+			return
 		end
 
+		assert(firesignal or getconnections, "No firesignal or getconnections found")
+
 		if firesignal then
-			firesignal(CallInfo.Instance[Method], table.unpack(Args, 1, n))
+			firesignal(CallInfo.Instance[Method], table.unpack(CallInfo.Arguments, 1, CallInfo.Arguments.n))
 		elseif getconnections then
 			for _, conn in getconnections(CallInfo.Instance[Method]) do
-				if conn.Fire then
-					conn:Fire(table.unpack(Args, 1, n))
-				elseif typeof(conn.Function) == "function" then
-					task.spawn(conn.Function, table.unpack(Args, 1, n))
-				end
+				conn:Fire(table.unpack(CallInfo.Arguments, 1, CallInfo.Arguments.n))
 			end
 		end
 
 		return
 	end
 
-	return CallInfo.Instance[Method](CallInfo.Instance, table.unpack(Args, 1, n))
+	CallInfo.Instance[Method](CallInfo.Instance, table.unpack(CallInfo.Arguments, 1, CallInfo.Arguments.n))
 end
 
 return CodeGen
