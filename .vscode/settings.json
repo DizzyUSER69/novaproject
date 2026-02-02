@@ -1,0 +1,10 @@
+{
+    "luau-lsp.require.mode": "relativeToFile",
+    "editor.formatOnSave": true,
+    "[luau]": {
+        "editor.defaultFormatter": "JohnnyMorganz.stylua"
+    },
+    "luau-lsp.fflags.override": {
+        "LuauSolverV2": "true"
+    }
+}

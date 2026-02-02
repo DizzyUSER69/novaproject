@@ -1,0 +1,16 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Build NovaProject",
+            "type": "shell",
+            "command": "lune run Build bundle header=Build/Header.luau",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": [],
+            "detail": "Bundles the source files into a single Nova.luau script."
+        }
+    ]
+}

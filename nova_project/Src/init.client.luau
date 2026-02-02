@@ -2,6 +2,11 @@ wax.shared.NovaStartTime = tick()
 
 local FileLogger = require(script.Utils.FileLog)
 
+--[[
+    Nova Project
+    Created by 04xSkater
+]]
+
 -- Environment
 for _, Service in pairs({
 	"ContentProvider",

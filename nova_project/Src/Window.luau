@@ -23,6 +23,7 @@ local Helper = require(UIUtils.Helper)
 
 local Resize = require(UIUtils.Resize)
 local Drag = require(UIUtils.Drag)
+local LoadingScreen = require(UIUtils.LoadingScreen)
 
 local PaginationHelper = Pagination.new({
 	ItemsPerPage = wax.shared.SaveManager:GetState("MaxItemPerPages", 20),
@@ -90,16 +91,17 @@ local ScreenDPIScale = Interface.New("UIScale", {
 		CornerRadius = UDim.new(0, 6),
 	})
 
-local MainFrame = Interface.New("Frame", {
-	AnchorPoint = Vector2.new(0.5, 0.5),
-	BackgroundColor3 = Color3.fromRGB(15, 15, 15),
-	Position = UDim2.fromScale(0.5, 0.5),
-	Size = UDim2.fromOffset(640, 420),
-	ZIndex = 0,
-
-	MainUICorner,
-	Parent = ScreenGui,
-})
+	local MainFrame = Interface.New("Frame", {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		BackgroundColor3 = Color3.fromRGB(15, 15, 15),
+		Position = UDim2.fromScale(0.5, 0.5),
+		Size = UDim2.fromOffset(640, 420),
+		ZIndex = 0,
+		Visible = false, -- Start hidden for loading screen
+	
+		MainUICorner,
+		Parent = ScreenGui,
+	})
 
 local ShowButton = Interface.New("TextButton", {
 	AnchorPoint = Vector2.new(0.5, 0),
@@ -4159,4 +4161,9 @@ wax.shared.Connect(wax.shared.UserInputService.InputBegan:Connect(function(Input
 	end
 end))
 
-return {}
+	task.spawn(function()
+		LoadingScreen.show()
+		MainFrame.Visible = true
+	end)
+
+	return {}

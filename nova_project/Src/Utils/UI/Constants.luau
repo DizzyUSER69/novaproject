@@ -1,6 +1,7 @@
 --[[
 	UI Constants for Nova
 	Centralized styling values for consistent theming
+	Customized for 04xSkater
 ]]
 
 local Constants = {}
@@ -13,32 +14,33 @@ Constants.CornerRadius = {
 	Round = UDim.new(1, 0),
 }
 
--- Colors
+-- Colors (Matching the Logo)
 Constants.Colors = {
 	Background = {
-		Primary = Color3.fromRGB(15, 15, 15),
-		Secondary = Color3.fromRGB(10, 10, 10),
-		Tertiary = Color3.fromRGB(5, 5, 5),
+		Primary = Color3.fromRGB(10, 10, 12), -- Darker, slightly blue tint
+		Secondary = Color3.fromRGB(15, 15, 20),
+		Tertiary = Color3.fromRGB(5, 5, 7),
 	},
 	Accent = {
-		Primary = Color3.fromRGB(25, 25, 25),
-		Hover = Color3.fromRGB(30, 30, 30),
-		Active = Color3.fromRGB(50, 50, 50),
+		Primary = Color3.fromRGB(0, 174, 255), -- Electric Blue from Logo
+		Hover = Color3.fromRGB(0, 190, 255),
+		Active = Color3.fromRGB(0, 150, 220),
+		Light = Color3.fromRGB(255, 255, 255), -- White center of Logo
 	},
 	Status = {
 		Success = Color3.fromRGB(52, 199, 89),
 		Warning = Color3.fromRGB(255, 153, 0),
 		Error = Color3.fromRGB(255, 69, 58),
-		Info = Color3.fromRGB(10, 132, 255),
+		Info = Color3.fromRGB(0, 174, 255),
 	},
 	Text = {
 		Primary = Color3.fromRGB(255, 255, 255),
-		Secondary = Color3.fromRGB(180, 180, 180),
-		Tertiary = Color3.fromRGB(128, 128, 128),
+		Secondary = Color3.fromRGB(180, 190, 200),
+		Tertiary = Color3.fromRGB(120, 130, 140),
 	},
 	Border = {
-		Primary = Color3.fromRGB(25, 25, 25),
-		Secondary = Color3.fromRGB(40, 40, 40),
+		Primary = Color3.fromRGB(30, 30, 40),
+		Secondary = Color3.fromRGB(0, 174, 255), -- Blue border for highlights
 	},
 }
 
