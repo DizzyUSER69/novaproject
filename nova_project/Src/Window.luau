@@ -589,6 +589,7 @@ local SettingsScrollingFrame = Interface.New("ScrollingFrame", {
 })
 
 local function CreateSettingsSection(SectionName: string)
+			table.insert(AllUIComponents, Section)
 	local Section = Interface.New("Frame", {
 		AutomaticSize = Enum.AutomaticSize.Y,
 		BackgroundTransparency = 1,
@@ -615,6 +616,7 @@ local function CreateSettingsSection(SectionName: string)
 end
 
 local function CreateSettingsButton(Text: string, Callback: () -> (), Section: Frame, TextSize: number?)
+			table.insert(AllUIComponents, Button)
 	local Button = Interface.New("TextButton", {
 		BackgroundColor3 = Color3.fromRGB(15, 15, 15),
 		Size = UDim2.new(1, 0, 0, 24),
@@ -650,7 +652,8 @@ local function CreateSettingsButton(Text: string, Callback: () -> (), Section: F
 	return Button
 end
 
-local function CreateSettingsCheckbox(
+local function CreateSettingsCheckbox
+			table.insert(AllUIComponents, CheckboxUI)(
 	Idx: string,
 	Options: {
 		Text: string,
@@ -768,7 +771,8 @@ local function CreateSettingsCheckbox(
 	return Checkbox
 end
 
-local function CreateSettingsTextBox(
+local function CreateSettingsTextBox
+			table.insert(AllUIComponents, Container)(
 	Idx: string,
 	Options: {
 		Text: string,
@@ -940,7 +944,8 @@ local function CreateSettingsTextBox(
 	return TextSetting
 end
 
-local function CreateSettingsDropdown(
+local function CreateSettingsDropdown
+			table.insert(AllUIComponents, DropdownUI)(
 	Idx: string,
 	Options: {
 		Multi: boolean?,
@@ -1240,7 +1245,8 @@ local function CreateSettingsDropdown(
 	return Dropdown
 end
 
-local function CreateSettingsRemoteList(
+local function CreateSettingsRemoteList
+			table.insert(AllUIComponents, RemoteListContainer)(
 	Idx: string,
 	Options: {
 		Text: string,
@@ -1590,13 +1596,24 @@ CreateSettingsCheckbox("ShowWatermark", {
 
 	local ThemeSection = CreateSettingsSection("Theme & Visuals")
 
-		local function RefreshUI()
+local AllUIComponents = {}
+
+local function RefreshUI()
 			MainFrame.BackgroundColor3 = Constants.Colors.Background.Primary
 			TopBar.BackgroundColor3 = Constants.Colors.Border.Primary
 			
 			-- Update all strokes if theme is Nova
 			local isNova = wax.shared.SaveManager:GetState("Theme", "Default") == "Nova"
 			local borderColor = if isNova then Constants.Colors.Accent.Primary else Constants.Colors.Border.Primary
+
+			for _, component in pairs(AllUIComponents) do
+				if component.UIStroke then
+					component.UIStroke.Color = borderColor
+				end
+				if component.ClassName == 'Frame' or component.ClassName == 'TextButton' or component.ClassName == 'ImageButton' then
+					component.BackgroundColor3 = Constants.Colors.Background.Primary
+				end
+			end
 			
 			MainFrame.UIStroke.Color = borderColor
 			SettingsFrame.UIStroke.Color = borderColor
@@ -1613,11 +1630,11 @@ CreateSettingsCheckbox("ShowWatermark", {
 
 	CreateSettingsDropdown("Theme", {
 		Text = "UI Theme",
-		Values = {
-			"Default",
-			"Nova"
-		},
-		Default = "Default",
+			Values = {
+				"Dark",
+				"Nova"
+			},
+			Default = "Dark",
 		Section = ThemeSection,
 		Callback = function(value)
 			Constants.ApplyTheme(value)
@@ -4213,7 +4230,7 @@ wax.shared.Connect(wax.shared.UserInputService.InputBegan:Connect(function(Input
 end))
 
 		task.spawn(function()
-			local savedTheme = wax.shared.SaveManager:GetState("Theme", "Default")
+				local savedTheme = wax.shared.SaveManager:GetState("Theme", "Dark")
 			Constants.ApplyTheme(savedTheme)
 			
 			LoadingScreen.show()

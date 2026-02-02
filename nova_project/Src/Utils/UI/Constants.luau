@@ -1,22 +1,22 @@
 --[[
-UI Constants for Nova
-Centralized styling values for consistent theming
-Customized for 04xSkater
+	UI Constants for Nova
+	Centralized styling values for consistent theming
+	Customized for 04xSkater
 ]]
 
 local Constants = {}
 
 -- Corner Radius
 Constants.CornerRadius = {
-Large = UDim.new(0, 10),
-Medium = UDim.new(0, 8),
-Small = UDim.new(0, 6),
-Round = UDim.new(1, 0),
+	Large = UDim.new(0, 10),
+	Medium = UDim.new(0, 8),
+	Small = UDim.new(0, 6),
+	Round = UDim.new(1, 0),
 }
 
 -- Theme Definitions
 Constants.Themes = {
-    Default = {
+    Dark = { -- Cobalt Style
         Background = {
             Primary = Color3.fromRGB(15, 15, 15),
             Secondary = Color3.fromRGB(20, 20, 20),
@@ -56,7 +56,7 @@ Constants.Themes = {
 Constants.Colors = {}
 
 function Constants.ApplyTheme(themeName)
-    local theme = Constants.Themes[themeName] or Constants.Themes.Default
+    local theme = Constants.Themes[themeName] or Constants.Themes.Dark
     
     Constants.Colors.Background = theme.Background
     Constants.Colors.Accent = theme.Accent
@@ -77,70 +77,70 @@ function Constants.ApplyTheme(themeName)
 end
 
 -- Default initialization
-Constants.ApplyTheme("Default")
+Constants.ApplyTheme("Dark")
 
 -- Padding
 Constants.Padding = {
-None = UDim.new(0, 0),
-XSmall = UDim.new(0, 2),
-Small = UDim.new(0, 4),
-Medium = UDim.new(0, 6),
-Large = UDim.new(0, 8),
-XLarge = UDim.new(0, 12),
+	None = UDim.new(0, 0),
+	XSmall = UDim.new(0, 2),
+	Small = UDim.new(0, 4),
+	Medium = UDim.new(0, 6),
+	Large = UDim.new(0, 8),
+	XLarge = UDim.new(0, 12),
 }
 
 -- Spacing
 Constants.Spacing = {
-None = UDim.new(0, 0),
-XSmall = UDim.new(0, 2),
-Small = UDim.new(0, 4),
-Medium = UDim.new(0, 6),
-Large = UDim.new(0, 8),
-XLarge = UDim.new(0, 15),
+	None = UDim.new(0, 0),
+	XSmall = UDim.new(0, 2),
+	Small = UDim.new(0, 4),
+	Medium = UDim.new(0, 6),
+	Large = UDim.new(0, 8),
+	XLarge = UDim.new(0, 15),
 }
 
 -- Text Sizes
 Constants.TextSize = {
-Small = 14,
-Medium = 15,
-Regular = 16,
-Large = 17,
-XLarge = 18,
+	Small = 14,
+	Medium = 15,
+	Regular = 16,
+	Large = 17,
+	XLarge = 18,
 }
 
 -- Tween Info
 Constants.TweenInfo = {
-Default = TweenInfo.new(0.2, Enum.EasingStyle.Exponential),
-Fast = TweenInfo.new(0.1, Enum.EasingStyle.Exponential),
-Slow = TweenInfo.new(0.3, Enum.EasingStyle.Exponential),
+	Default = TweenInfo.new(0.2, Enum.EasingStyle.Exponential),
+	Fast = TweenInfo.new(0.1, Enum.EasingStyle.Exponential),
+	Slow = TweenInfo.new(0.3, Enum.EasingStyle.Exponential),
 }
 
 -- Sizes
 Constants.Sizes = {
-Button = {
-Small = UDim2.fromOffset(24, 24),
-Medium = UDim2.fromOffset(30, 30),
-Large = UDim2.fromOffset(36, 36),
-},
-Icon = {
-Small = UDim2.fromOffset(16, 16),
-Medium = UDim2.fromOffset(20, 20),
-Large = UDim2.fromOffset(24, 24),
-},
+	Button = {
+		Small = UDim2.fromOffset(24, 24),
+		Medium = UDim2.fromOffset(30, 30),
+		Large = UDim2.fromOffset(36, 36),
+	},
+	Icon = {
+		Small = UDim2.fromOffset(16, 16),
+		Medium = UDim2.fromOffset(20, 20),
+		Large = UDim2.fromOffset(24, 24),
+	},
 }
 
 -- Transparency
 Constants.Transparency = {
-Opaque = 0,
-SemiTransparent = 0.5,
-Transparent = 1,
+	Opaque = 0,
+	SemiTransparent = 0.5,
+	Transparent = 1,
 }
 
 -- Stroke Thickness
 Constants.StrokeThickness = {
-Thin = 1,
-Medium = 2,
-Thick = 3,
+	Thin = 1,
+	Medium = 2,
+	Thick = 3,
 }
 
 return Constants

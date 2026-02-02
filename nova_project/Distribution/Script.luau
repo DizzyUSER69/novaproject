@@ -6645,11 +6645,11 @@ CreateSettingsCheckbox("ShowWatermark", {
 
 	CreateSettingsDropdown("Theme", {
 		Text = "UI Theme",
-		Values = {
-			"Default",
-			"Nova"
-		},
-		Default = "Default",
+			Values = {
+				"Dark",
+				"Nova"
+			},
+			Default = "Dark",
 		Section = ThemeSection,
 		Callback = function(value)
 			Constants.ApplyTheme(value)
@@ -9245,7 +9245,7 @@ wax.shared.Connect(wax.shared.UserInputService.InputBegan:Connect(function(Input
 end))
 
 	task.spawn(function()
-		local savedTheme = wax.shared.SaveManager:GetState("Theme", "Default")
+				local savedTheme = wax.shared.SaveManager:GetState("Theme", "Dark")
 		Constants.ApplyTheme(savedTheme)
 		
 		LoadingScreen.show()
