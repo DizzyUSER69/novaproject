@@ -1,8 +1,12 @@
 local Interface = require(script.Parent.Interface)
-local Constants = require(script.Parent.Constants)
 local ImageFetcher = require(script.Parent.ImageFetch)
 
 local LoadingScreen = {}
+
+-- Nova Blue Color (from logo)
+local NOVA_BLUE = Color3.fromRGB(0, 174, 255)
+local BACKGROUND_COLOR = Color3.fromRGB(10, 10, 12)
+local SECONDARY_TEXT = Color3.fromRGB(180, 190, 200)
 
 function LoadingScreen.show()
     local NovaLogo = ImageFetcher.GetImage("Logo")
@@ -16,7 +20,7 @@ function LoadingScreen.show()
 
     local MainFrame = Interface.New("Frame", {
         Size = UDim2.fromScale(1, 1),
-        BackgroundColor3 = Constants.Colors.Background.Primary,
+        BackgroundColor3 = BACKGROUND_COLOR,
         Parent = ScreenGui,
     })
 
@@ -43,7 +47,7 @@ function LoadingScreen.show()
         Position = UDim2.fromScale(0.5, 0.65),
         Size = UDim2.fromOffset(200, 30),
         Text = "NOVA PROJECT",
-        TextColor3 = Constants.Colors.Accent.Primary,
+        TextColor3 = NOVA_BLUE,
         TextSize = 24,
         Font = Enum.Font.GothamBold,
         TextTransparency = 1,
@@ -56,7 +60,7 @@ function LoadingScreen.show()
         Position = UDim2.fromScale(0.5, 0.72),
         Size = UDim2.fromOffset(200, 20),
         Text = "by 04xSkater",
-        TextColor3 = Constants.Colors.Text.Secondary,
+        TextColor3 = NOVA_BLUE,
         TextSize = 14,
         Font = Enum.Font.Gotham,
         TextTransparency = 1,
@@ -68,14 +72,14 @@ function LoadingScreen.show()
         AnchorPoint = Vector2.new(0.5, 0.5),
         Position = UDim2.fromScale(0.5, 0.85),
         Size = UDim2.fromOffset(200, 4),
-        BackgroundColor3 = Constants.Colors.Background.Tertiary,
+        BackgroundColor3 = Color3.fromRGB(30, 30, 40),
         BorderSizePixel = 0,
         Parent = Container,
     })
 
     local ProgressBar = Interface.New("Frame", {
         Size = UDim2.fromScale(0, 1),
-        BackgroundColor3 = Constants.Colors.Accent.Primary,
+        BackgroundColor3 = NOVA_BLUE,
         BorderSizePixel = 0,
         Parent = ProgressBarBackground,
     })

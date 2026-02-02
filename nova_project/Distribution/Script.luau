@@ -971,1774 +971,6 @@ end
 return ImageFetcher
 
 end)() end,
-    [38] = function()local wax,script,require=ImportGlobals(38)local ImportGlobals return (function(...)--[[
-
-Luau syntax highlighter with studio colors
-Based on: https://devforum.roblox.com/t/realtime-richtext-lua-syntax-highlighting/2500399
-
-]]
-
-local Highlighter = {
-	Colors = {
-		Keyword = "#f86d7c",
-		String = "#adf195",
-		Number = "#ffc600",
-		Nil = "#ffc600",
-		Boolean = "#ffc600",
-		Function = "#f86d7c",
-		Self = "#f86d7c",
-		Local = "#f86d7c",
-		Text = "#ffffff",
-		LocalMethod = "#fdfbac",
-		LocalProperty = "#61a1f1",
-		BuiltIn = "#84d6f7",
-		Comment = "#666666",
-	},
-
-	Keywords = {
-		Lua = {
-			"and",
-			"break",
-			"or",
-			"else",
-			"elseif",
-			"if",
-			"then",
-			"until",
-			"repeat",
-			"while",
-			"do",
-			"for",
-			"in",
-			"end",
-			"local",
-			"return",
-			"function",
-			"export",
-		},
-		Roblox = {
-			"game",
-			"workspace",
-			"script",
-			"math",
-			"string",
-			"table",
-			"task",
-			"wait",
-			"select",
-			"next",
-			"Enum",
-			"error",
-			"warn",
-			"tick",
-			"assert",
-			"shared",
-			"loadstring",
-			"tonumber",
-			"tostring",
-			"type",
-			"typeof",
-			"unpack",
-			"print",
-			"Instance",
-			"CFrame",
-			"Vector3",
-			"Vector2",
-			"Color3",
-			"UDim",
-			"UDim2",
-			"Ray",
-			"BrickColor",
-			"OverlapParams",
-			"RaycastParams",
-			"Axes",
-			"Random",
-			"Region3",
-			"Rect",
-			"TweenInfo",
-			"collectgarbage",
-			"not",
-			"utf8",
-			"pcall",
-			"xpcall",
-			"_G",
-			"setmetatable",
-			"getmetatable",
-			"os",
-			"pairs",
-			"ipairs",
-		},
-	},
-}
-
-local function CreateKeywordSet(keywords)
-	local keywordSet = {}
-	for _, keyword in ipairs(keywords) do
-		keywordSet[keyword] = true
-	end
-	return keywordSet
-end
-
-local LuaSet = CreateKeywordSet(Highlighter.Keywords.Lua)
-local RobloxSet = CreateKeywordSet(Highlighter.Keywords.Roblox)
-
-local function GetHighlightColor(tokens, index)
-	local token = tokens[index]
-
-	if tonumber(token) then
-		return Highlighter.Colors.Number
-	elseif token == "nil" then
-		return Highlighter.Colors.Nil
-	elseif token:sub(1, 2) == "--" then
-		return Highlighter.Colors.Comment
-	elseif LuaSet[token] then
-		return Highlighter.Colors.Keyword
-	elseif RobloxSet[token] or getgenv()[token] ~= nil then
-		return Highlighter.Colors.BuiltIn
-	elseif token:sub(1, 1) == '"' or token:sub(1, 1) == "'" then
-		return Highlighter.Colors.String
-	elseif token == "true" or token == "false" then
-		return Highlighter.Colors.Boolean
-	end
-
-	if tokens[index + 1] == "(" then
-		if tokens[index - 1] == ":" then
-			return Highlighter.Colors.LocalMethod
-		end
-		return Highlighter.Colors.LocalMethod
-	end
-
-	if tokens[index - 1] == "." then
-		if tokens[index - 2] == "Enum" then
-			return Highlighter.Colors.BuiltIn
-		end
-		return Highlighter.Colors.LocalProperty
-	end
-
-	return nil
-end
-
-local ArgumentColors = {
-	["boolean"] = Highlighter.Colors.Boolean,
-	["number"] = Highlighter.Colors.Number,
-	["Vector2"] = Highlighter.Colors.Number,
-	["Vector3"] = Highlighter.Colors.Number,
-	["CFrame"] = Highlighter.Colors.Number,
-	["string"] = Highlighter.Colors.String,
-	["EnumItem"] = Highlighter.Colors.BuiltIn,
-	["nil"] = Highlighter.Colors.Nil,
-}
-function Highlighter.GetArgumentColor(Argument)
-	return ArgumentColors[typeof(Argument)] or Highlighter.Colors.Text
-end
-
-function Highlighter.Run(source)
-	local tokens = {}
-	local currentToken = ""
-
-	local inString = false
-	local inComment = false
-	local commentPersist = false
-
-	for i = 1, #source do
-		local character = source:sub(i, i)
-
-		if inComment then
-			if character == "\n" and not commentPersist then
-				table.insert(tokens, currentToken)
-				table.insert(tokens, character)
-				currentToken = ""
-
-				inComment = false
-			elseif source:sub(i - 1, i) == "]]" and commentPersist then
-				currentToken = currentToken .. "]"
-
-				table.insert(tokens, currentToken)
-				currentToken = ""
-
-				inComment = false
-				commentPersist = false
-			else
-				currentToken = currentToken .. character
-			end
-		elseif inString then
-			if character == inString and source:sub(i - 1, i - 1) ~= "\\" or character == "\n" then
-				currentToken = currentToken .. character
-				table.insert(tokens, currentToken)
-				currentToken = ""
-				inString = false
-			else
-				currentToken = currentToken .. character
-			end
-		else
-			if source:sub(i, i + 1) == "--" then
-				table.insert(tokens, currentToken)
-				currentToken = "--"
-				inComment = true
-				commentPersist = source:sub(i + 2, i + 3) == "[["
-				i = i + 1
-			elseif character == '"' or character == "'" then
-				table.insert(tokens, currentToken)
-				currentToken = character
-				inString = character
-			elseif character:match("[%p]") and character ~= "_" then
-				table.insert(tokens, currentToken)
-				table.insert(tokens, character)
-				currentToken = ""
-			elseif character:match("[%w_]") then
-				currentToken = currentToken .. character
-			else
-				table.insert(tokens, currentToken)
-				table.insert(tokens, character)
-				currentToken = ""
-			end
-		end
-	end
-
-	if currentToken ~= "" then
-		table.insert(tokens, currentToken)
-	end
-
-	for i = #tokens, 1, -1 do
-		if tokens[i] == "" then
-			table.remove(tokens, i)
-		end
-	end
-
-	local highlighted = {}
-
-	for i, token in ipairs(tokens) do
-		local highlightColor = GetHighlightColor(tokens, i)
-
-		if highlightColor then
-			local syntax =
-				string.format('<font color="%s">%s</font>', highlightColor, token:gsub("<", "&lt;"):gsub(">", "&gt;"))
-
-			table.insert(highlighted, syntax)
-		else
-			table.insert(highlighted, token)
-		end
-	end
-
-	return table.concat(highlighted)
-end
-
-return Highlighter
-
-end)() end,
-    [39] = function()local wax,script,require=ImportGlobals(39)local ImportGlobals return (function(...)local Icons = {}
-
-type Icon = {
-	Url: string,
-	Id: number,
-	IconName: string,
-	ImageRectOffset: Vector2,
-	ImageRectSize: Vector2,
-}
-
-local Success, IconsModule = pcall(function()
-	local IconFetchSuccess, IconModuleSource = pcall(request, {
-		Url = "https://raw.githubusercontent.com/deividcomsono/lucide-roblox-direct/refs/heads/main/source.lua",
-		Method = "GET",
-	})
-
-	assert(
-		IconFetchSuccess and IconModuleSource.Success or IconModuleSource.StatusCode >= 200 and IconModuleSource.StatusCode < 300,
-		"Failed to fetch lucide icons direct module source"
-	)
-	return (loadstring(IconModuleSource.Body) :: () -> { Icons: { string }, GetAsset: (Name: string) -> Icon? })()
-end)
-
-function Icons.GetIcon(iconName: string): Icon?
-	if not Success then
-		return
-	end
-
-	local Success, Icon = pcall(IconsModule.GetAsset, iconName)
-	if not Success then
-		return
-	end
-
-	return Icon
-end
-
-function Icons.SetIcon(imageInstance: ImageLabel, iconName: string)
-	local Icon: Icon? = Icons.GetIcon(iconName)
-	if not Icon then
-		return
-	end
-
-	imageInstance.Image = Icon.Url
-	imageInstance.ImageRectOffset = Icon.ImageRectOffset
-	imageInstance.ImageRectSize = Icon.ImageRectSize
-end
-
-return Icons
-
-end)() end,
-    [36] = function()local wax,script,require=ImportGlobals(36)local ImportGlobals return (function(...)--[[
-	Enhanced Modal Component for Nova
-	Improved modal with smooth animations and better UX
-]]
-
-local Constants = require(script.Parent.Constants)
-local Interface = require(script.Parent.Interface)
-
-local EnhancedModal = {}
-
-type ModalConfig = {
-	Title: string,
-	Icon: string?,
-	Size: UDim2?,
-	MinSize: UDim2?,
-	MaxSize: UDim2?,
-	Resizable: boolean?,
-	Parent: Instance,
-}
-
-function EnhancedModal.Create(config: ModalConfig)
-	local modal = {}
-	
-	-- Background overlay
-	local overlay = Interface.New("TextButton", {
-		BackgroundColor3 = Color3.fromRGB(0, 0, 0),
-		BackgroundTransparency = 1,
-		Size = UDim2.fromScale(1, 1),
-		Text = "",
-		Visible = false,
-		ZIndex = 1000,
-		Parent = config.Parent,
-	})
-	
-	-- Modal container
-	local container = Interface.New("Frame", {
-		AnchorPoint = Vector2.new(0.5, 0.5),
-		BackgroundColor3 = Constants.Colors.Background.Secondary,
-		Position = UDim2.fromScale(0.5, 0.5),
-		Size = config.Size or UDim2.fromScale(0.6, 0.7),
-		ZIndex = 1001,
-		Visible = false,
-		Parent = config.Parent,
-		
-		["UICorner"] = {
-			CornerRadius = Constants.CornerRadius.Medium,
-		},
-		
-		["UIStroke"] = {
-			ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-			Color = Constants.Colors.Border.Primary,
-			Thickness = Constants.StrokeThickness.Thin,
-		},
-	})
-	
-	-- Title bar
-	local titleBar = Interface.New("Frame", {
-		BackgroundTransparency = 1,
-		Size = UDim2.new(1, 0, 0, 36),
-		Parent = container,
-		
-		["UIPadding"] = {
-			PaddingLeft = Constants.Padding.Medium,
-			PaddingRight = Constants.Padding.Medium,
-			PaddingTop = Constants.Padding.Medium,
-			PaddingBottom = Constants.Padding.Medium,
-		},
-	})
-	
-	-- Title text
-	local titleText = Interface.New("TextLabel", {
-		Text = config.Title,
-		TextSize = Constants.TextSize.Large,
-		TextColor3 = Constants.Colors.Text.Primary,
-		TextTruncate = Enum.TextTruncate.AtEnd,
-		Size = UDim2.new(1, -60, 1, 0),
-		Position = UDim2.fromScale(0.5, 0.5),
-		AnchorPoint = Vector2.new(0.5, 0.5),
-		BackgroundTransparency = 1,
-		Parent = titleBar,
-	})
-	
-	-- Icon (if provided)
-	if config.Icon then
-		local Icons = require(script.Parent.Icons)
-		if config.Icon:match("rbxasset") then
-			Interface.New("ImageLabel", {
-				Image = config.Icon,
-				Size = UDim2.fromScale(1, 1),
-				Position = UDim2.fromOffset(4, 0),
-				SizeConstraint = Enum.SizeConstraint.RelativeYY,
-				BackgroundTransparency = 1,
-				Parent = titleBar,
-			})
-		else
-			Interface.NewIcon(config.Icon, {
-				ImageTransparency = 0.5,
-				Size = UDim2.fromScale(1, 1),
-				Position = UDim2.fromOffset(4, 0),
-				SizeConstraint = Enum.SizeConstraint.RelativeYY,
-				Parent = titleBar,
-			})
-		end
-	end
-	
-	-- Close button
-	local closeButton = Interface.New("ImageButton", {
-		Size = UDim2.fromScale(1, 1),
-		SizeConstraint = Enum.SizeConstraint.RelativeYY,
-		AnchorPoint = Vector2.new(1, 0),
-		Position = UDim2.fromScale(1, 0),
-		BackgroundTransparency = 1,
-		Parent = titleBar,
-	})
-	
-	local closeIcon = Interface.NewIcon("x", {
-		ImageTransparency = 0.5,
-		Size = UDim2.fromOffset(22, 22),
-		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.fromScale(0.5, 0.5),
-		SizeConstraint = Enum.SizeConstraint.RelativeYY,
-		Parent = closeButton,
-	})
-	
-	-- Close button hover effects
-	closeButton.MouseEnter:Connect(function()
-		wax.shared.TweenService:Create(
-			closeIcon,
-			Constants.TweenInfo.Default,
-			{ ImageTransparency = 0.25 }
-		):Play()
-	end)
-	
-	closeButton.MouseLeave:Connect(function()
-		wax.shared.TweenService:Create(
-			closeIcon,
-			Constants.TweenInfo.Default,
-			{ ImageTransparency = 0.5 }
-		):Play()
-	end)
-	
-	-- Separator line
-	Interface.New("Frame", {
-		Parent = container,
-		BackgroundColor3 = Constants.Colors.Border.Primary,
-		Size = UDim2.new(1, 0, 0, 1),
-		Position = UDim2.fromOffset(0, 36),
-	})
-	
-	-- Content area
-	local content = Interface.New("ScrollingFrame", {
-		AnchorPoint = Vector2.new(0, 1),
-		BackgroundTransparency = 1,
-		Position = UDim2.fromScale(0, 1),
-		Size = UDim2.new(1, 0, 1, -37),
-		ClipsDescendants = true,
-		ScrollBarThickness = 2,
-		AutomaticCanvasSize = Enum.AutomaticSize.Y,
-		CanvasSize = UDim2.fromScale(0, 0),
-		Parent = container,
-		
-		["UIPadding"] = {
-			PaddingLeft = Constants.Padding.Large,
-			PaddingRight = Constants.Padding.Large,
-			PaddingTop = Constants.Padding.Large,
-			PaddingBottom = Constants.Padding.Large,
-		},
-	})
-	
-	-- Modal methods
-	function modal:Open()
-		overlay.Visible = true
-		container.Visible = true
-		
-		-- Fade in overlay
-		wax.shared.TweenService:Create(
-			overlay,
-			Constants.TweenInfo.Default,
-			{ BackgroundTransparency = 0.5 }
-		):Play()
-		
-		-- Scale in container
-		container.Size = UDim2.fromScale(0, 0)
-		wax.shared.TweenService:Create(
-			container,
-			TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
-			{ Size = config.Size or UDim2.fromScale(0.6, 0.7) }
-		):Play()
-	end
-	
-	function modal:Close()
-		-- Fade out overlay
-		local overlayTween = wax.shared.TweenService:Create(
-			overlay,
-			Constants.TweenInfo.Default,
-			{ BackgroundTransparency = 1 }
-		)
-		
-		-- Scale out container
-		local containerTween = wax.shared.TweenService:Create(
-			container,
-			TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.In),
-			{ Size = UDim2.fromScale(0, 0) }
-		)
-		
-		overlayTween:Play()
-		containerTween:Play()
-		
-		containerTween.Completed:Connect(function()
-			overlay.Visible = false
-			container.Visible = false
-		end)
-	end
-	
-	function modal:GetContent()
-		return content
-	end
-	
-	function modal:SetTitle(newTitle: string)
-		titleText.Text = newTitle
-	end
-	
-	-- Connect close button
-	closeButton.MouseButton1Click:Connect(function()
-		modal:Close()
-	end)
-	
-	-- Connect overlay click to close
-	overlay.MouseButton1Click:Connect(function()
-		modal:Close()
-	end)
-	
-	modal.Container = container
-	modal.Content = content
-	modal.Overlay = overlay
-	
-	return modal
-end
-
-return EnhancedModal
-
-end)() end,
-    [28] = function()local wax,script,require=ImportGlobals(28)local ImportGlobals return (function(...)--[[
-
-Pagination Module
-made by deivid and turned into module by upio
-
-]]
-
-local Pagination = {}
-Pagination.__index = Pagination
-
-function Pagination.new(Options: {
-	TotalItems: number,
-	ItemsPerPage: number,
-	CurrentPage: number?,
-	SiblingCount: number?,
-})
-	return setmetatable({
-		TotalItems = Options.TotalItems,
-		ItemsPerPage = Options.ItemsPerPage,
-		CurrentPage = Options.CurrentPage or 1,
-		SiblingCount = Options.SiblingCount or 2,
-	}, Pagination)
-end
-
-function Pagination:GetInfo()
-	local TotalPages = math.ceil(self.TotalItems / self.ItemsPerPage)
-
-	return {
-		TotalItems = self.TotalItems,
-		ItemsPerPage = self.ItemsPerPage,
-		CurrentPage = self.CurrentPage,
-		TotalPages = TotalPages,
-	}
-end
-
-function Pagination:SetItemsPerPage(max: number)
-	self.ItemsPerPage = max
-end
-
-function Pagination:GetIndexRanges(Page: number?)
-	Page = Page or self.CurrentPage
-
-	local TotalPages = math.ceil(self.TotalItems / self.ItemsPerPage)
-	if TotalPages == 0 then
-		return 1, 0
-	end
-	assert(
-		Page <= TotalPages,
-		"Attempted to get invalid page out of range, got " .. Page .. " but max is " .. TotalPages
-	)
-
-	local Start = (((Page or self.CurrentPage) - 1) * self.ItemsPerPage) + 1
-	local End = Start + (self.ItemsPerPage - 1)
-
-	return Start, End
-end
-
-function Pagination:SetPage(Page: number)
-	local TotalPages = math.ceil(self.TotalItems / self.ItemsPerPage)
-	if TotalPages == 0 then
-		self.CurrentPage = 1
-		return
-	end
-	assert(Page <= TotalPages, "Attempted to set page out of range, got " .. Page .. " but max is " .. TotalPages)
-
-	self.CurrentPage = Page
-end
-
-function Pagination:Update(TotalItems: number?, ItemsPerPage: number?)
-	self.TotalItems = TotalItems or self.TotalItems
-	self.ItemsPerPage = ItemsPerPage or self.ItemsPerPage
-end
-
-function Pagination:GetVisualInfo(Page: number?)
-	Page = Page or self.CurrentPage
-
-	local TotalPages = math.ceil(self.TotalItems / self.ItemsPerPage)
-	if TotalPages == 0 then
-		return {}
-	end
-
-	assert(
-		Page <= TotalPages,
-		"Attempted to get invalid page out of range, got " .. Page .. " but max is " .. TotalPages
-	)
-
-	local MaxButtons = 5 + self.SiblingCount * 2
-	local Result = table.create(MaxButtons, "none")
-	if TotalPages <= MaxButtons then
-		for i = 1, TotalPages do
-			Result[i] = i
-		end
-		return Result
-	end
-
-	local LeftSibling = math.max(Page - self.SiblingCount, 1)
-	local RightSibling = math.min(Page + self.SiblingCount, TotalPages)
-
-	local FakeLeft = LeftSibling > 2
-	local FakeRight = RightSibling < TotalPages - 1
-
-	local TotalPageNumbers = math.min(2 * self.SiblingCount + 5, TotalPages)
-	local ItemCount = TotalPageNumbers - 2
-
-	if not FakeLeft and FakeRight then
-		for i = 1, ItemCount do
-			Result[i] = i
-		end
-		Result[ItemCount + 1] = "ellipsis"
-		Result[ItemCount + 2] = TotalPages
-		--return MergeTables(LeftRange, "ellipsis", TotalPages)
-		return Result
-	elseif FakeLeft and not FakeRight then
-		--local RightRange = CreateArray(TotalPages - ItemCount + 1, TotalPages)
-		Result[1] = 1
-		Result[2] = "ellipsis"
-
-		local Index = 3
-		for i = TotalPages - ItemCount + 1, TotalPages do
-			Result[Index] = i
-			Index += 1
-		end
-
-		return Result
-	elseif FakeLeft and FakeRight then
-		--local MiddleRange = CreateArray(LeftSibling, RightSibling)
-		Result[1] = 1
-		Result[2] = "ellipsis"
-		local Index = 3
-
-		for i = LeftSibling, RightSibling do
-			Result[Index] = i
-			Index += 1
-		end
-
-		Result[Index] = "ellipsis"
-		Result[Index + 1] = TotalPages
-
-		return Result
-		--return MergeTables(1, "ellipsis", MiddleRange, "ellipsis", TotalPages)
-	end
-
-	--return CreateArray(1, TotalPages)
-	for i = 1, TotalPages do
-		Result[i] = i
-	end
-	return Result
-end
-
-return Pagination
-
-end)() end,
-    [14] = function()local wax,script,require=ImportGlobals(14)local ImportGlobals return (function(...)local LuaEncode = require(script.Parent.Parent.Utils.Serializer.LuaEncode)
-local CodeGen = require(script.Parent.Parent.Utils.CodeGen.Generator)
-
-local Hooks = script.Parent.Hooks
-
--- Main Thread Hooks
-for _, Hook in Hooks.Default:GetChildren() do
-	task.spawn(require, Hook)
-end
-
-getgenv().NovaInitialized = true
-
--- Actors use a different lua vm
--- This means that our main thread metatable hooks dont apply in the actor's vm
--- So we need to set up the hooks again in the actor lua vm in order to log everything
-local ActorsUtils = script.Parent.Actors
-
-wax.shared.ActorsEnabled = (
-	wax.shared.ExecutorSupport["run_on_actor"].IsWorking
-	and wax.shared.ExecutorSupport["getactors"].IsWorking
-	and wax.shared.ExecutorSupport["create_comm_channel"].IsWorking
-)
-
-if wax.shared.ActorsEnabled then
-	local ActorEnvironmentCode = ActorsUtils.Environment.Value
-
-	local CommunicationChannelID, Channel = create_comm_channel()
-	wax.shared.ActorCommunicator = Channel
-
-	local AlternativeEnabled = wax.shared.SaveManager:GetState("UseAlternativeHooks", false)
-
-	local IgnorePlayerModule = wax.shared.SaveManager:GetState("IgnorePlayerModule", true)
-	local IngoredRemotesDropdown = wax.shared.SaveManager:GetState("IgnoredRemotesDropdown", {
-		["BindableEvent"] = true,
-		["BindableFunction"] = true,
-	})
-
-	local ActorData = LuaEncode({
-		Token = wax.shared.NovaVerificationToken,
-
-		IgnorePlayerModule = IgnorePlayerModule,
-		IgnoredRemotesDropdown = IngoredRemotesDropdown,
-		UseAlternativeHooks = AlternativeEnabled,
-
-		ExecutorSupport = wax.shared.ExecutorSupport,
-	})
-
-	ActorEnvironmentCode = ActorEnvironmentCode:gsub("NOVA_ACTOR_DATA", ActorData)
-
-	-- Actor Logs Sync Layer
-	local function ReconstructTable(Info, CyclicRefs)
-		local Reconstructed = {}
-
-		for Key, Value in Info do
-			if type(Value) == "table" then
-				if Value["__Function"] and Value["Validation"] == wax.shared.NovaVerificationToken then
-					local FunctionData = table.clone(Value)
-					FunctionData["__Function"] = nil
-					FunctionData["Validation"] = nil
-
-					Reconstructed[Key] = FunctionData
-					continue
-				end
-
-				-- Check for Nova Created Object
-				if not Value["__CyclicRef"] then
-					Reconstructed[Key] = ReconstructTable(Value, CyclicRefs)
-					continue
-				end
-
-				local CyclicId = Value["__Id"]
-
-				if not CyclicRefs[CyclicId] then
-					warn("CyclicRef not found: " .. CyclicId)
-					continue
-				end
-
-				Reconstructed[Key] = CyclicRefs[CyclicId]
-				continue
-			end
-
-			Reconstructed[Key] = Value
-		end
-
-		return Reconstructed
-	end
-
-	wax.shared.Connect(Channel.Event:Connect(function(EventType, ...)
-		local ShouldLogActors = wax.shared.SaveManager:GetState("LogActors", true)
-
-		if not ShouldLogActors then
-			return
-		end
-
-		if EventType ~= "ActorCall" then
-			return
-		end
-
-		local Instance, Type, RawInfo, CyclicRefs = ...
-		if Instance == Channel or Instance == wax.shared.Communicator then
-			return
-		end
-
-		local Method = wax.shared.FunctionForClasses[Type][Instance.ClassName]
-		local Log = wax.shared.Logs[Type][Instance]
-
-		if not Log then
-			Log = wax.shared.NewLog(Instance, Type, Method, RawInfo.Origin)
-		end
-
-		if Log.Blocked then
-			return
-		elseif not Log.Ignored then
-			local ReconstructedInfo = ReconstructTable(RawInfo, CyclicRefs)
-			ReconstructedInfo.IsActor = true
-
-			--// Reconstruct Packed Arguments (BindableEvents omit ["n"] for unknown reason) \\--
-			local Packed = ReconstructedInfo.Arguments
-			local PackedN, PackedData = Packed.n, Packed.Data
-			ReconstructedInfo.Arguments = PackedData
-			ReconstructedInfo.Arguments.n = PackedN
-
-			Log:Call(ReconstructedInfo)
-			wax.shared.Communicator:Fire(Log.Instance, Type, #Log.Calls)
-		end
-	end))
-
-	-- Actor Hooking Code Generation
-	local CodeToRun = ActorEnvironmentCode
-
-	for _, ActorHook in Hooks.Actors:GetChildren() :: { StringValue } do
-		CodeToRun ..= table.concat({
-			"task.spawn(function()",
-			CodeGen:IndentCode(ActorHook.Value, 1),
-			"end)",
-		}, "\n") .. "\n\n"
-	end
-
-	CodeToRun ..= table.concat({
-		"task.spawn(function()",
-		CodeGen:IndentCode(ActorsUtils.Unload.Value, 1),
-		"end)",
-	}, "\n")
-
-	-- Actual Hooking Logic
-	-- The hooking code wont run again if nova is already initialized in that Actor (to address deleted actors aka LuaStateProxy stuff)
-	
-	-- `HookActor` is to address Volcano returning non initialized actors inside their `getactors` function.
-	-- God this code is so ass 🥹
-	local function HookActor(TargetActor: Actor)
-		local Hooked = false
-		repeat
-			Hooked, _ = pcall(run_on_actor, TargetActor, CodeToRun, CommunicationChannelID)
-			task.wait(0.25)
-		until Hooked
-	end
-
-	for _, TargetActor in getactors() do
-		task.spawn(HookActor, TargetActor)
-	end
-
-	wax.shared.Connect(game.DescendantAdded:Connect(function(actor)
-		if not actor:IsA("Actor") then
-			return
-		end
-
-		HookActor(actor)
-	end))
-end
-
-return {}
-
-end)() end,
-    [35] = function()local wax,script,require=ImportGlobals(35)local ImportGlobals return (function(...)local Drag = {
-	Dragging = false,
-	Frame = nil,
-	FramePosition = nil,
-	FrameSize = nil, -- Added to store initial frame size
-	StartPosition = nil,
-	ChangedConnection = nil,
-	Callback = nil,
-}
-
-local Helper = require(script.Parent.Helper)
-
-local function DefaultCallback(_, Input: InputObject)
-	local Delta = Input.Position - Drag.StartPosition
-	local FramePosition: UDim2 = Drag.FramePosition
-
-	if wax.shared.GetDPIScale then
-		Delta = Delta / wax.shared.GetDPIScale()
-	end
-
-	Drag.Frame.Position = UDim2.new(
-		FramePosition.X.Scale,
-		FramePosition.X.Offset + Delta.X,
-		FramePosition.Y.Scale,
-		FramePosition.Y.Offset + Delta.Y
-	)
-end
-
-function Drag.Setup(Frame: GuiObject, DragFrame: GuiObject, Callback: (Info: {}, Input: InputObject) -> () | nil)
-	Callback = Callback or DefaultCallback
-
-	DragFrame.InputBegan:Connect(function(Input: InputObject)
-		if not Helper.IsClickInput(Input) then
-			return
-		end
-
-		Drag.Dragging = true
-		Drag.Frame = Frame
-		Drag.FramePosition = Frame.Position
-		Drag.StartPosition = Input.Position
-		Drag.FrameSize = Frame.Size
-		Drag.Callback = Callback
-
-		Drag.ChangedConnection = Input.Changed:Connect(function()
-			if Input.UserInputState ~= Enum.UserInputState.End then
-				return
-			end
-
-			Drag.Dragging = false
-			Drag.Frame = nil
-			Drag.Callback = nil
-
-			if Drag.ChangedConnection and Drag.ChangedConnection.Connected then
-				Drag.ChangedConnection:Disconnect()
-				Drag.ChangedConnection = nil
-			end
-		end)
-	end)
-end
-
-wax.shared.Connect(wax.shared.UserInputService.InputChanged:Connect(function(Input: InputObject)
-	if Drag.Dragging and Drag.Callback and Helper.IsMoveInput(Input) then
-		Drag.Callback(Drag, Input)
-	end
-end))
-
-return Drag
-
-end)() end,
-    [19] = function()local wax,script,require=ImportGlobals(19)local ImportGlobals return (function(...)local Adonis = {
-	Name = "Adonis",
-	Game = "*",
-}
-
-local AdonisAnticheatThreads = {}
-function Adonis.Detect()
-	if not getreg or not getgc or not isfunctionhooked then
-		return false
-	end
-
-	local AdonisDetected = false
-
-	for _, thread in getreg() do
-		if typeof(thread) ~= "thread" then
-			continue
-		end
-
-		local Source = debug.info(thread, 1, "s")
-		if Source and (Source:match(".Core.Anti") or Source:match(".Plugins.Anti_Cheat")) then
-			AdonisDetected = true
-			table.insert(AdonisAnticheatThreads, thread)
-		end
-	end
-
-	return AdonisDetected
-end
-
-function Adonis.Bypass()
-	for _, thread in AdonisAnticheatThreads do
-		pcall(coroutine.close, thread)
-	end
-
-	local AdonisTables = {}
-	if filtergc then
-		local ContendorAdonisTables = filtergc("table", {
-			Keys = { "Detected", "RLocked" }
-		}, false)
-
-		for _, AdonisTable in ContendorAdonisTables do
-			if typeof(rawget(AdonisTable, "Detected")) ~= "function" then continue end
-			table.insert(AdonisTables, AdonisTable)
-		end
-	else
-		for _, Table in getgc(true) do
-			if typeof(Table) ~= "table" then
-				continue
-			end
-	
-			local IsAdonisOrigin = typeof(rawget(Table, "Detected")) == "function" and rawget(Table, "RLocked")
-			if not IsAdonisOrigin then continue end
-
-			table.insert(AdonisTables, Table)
-		end
-	end
-
-	for _, Adonis in AdonisTables do
-		for _, DetectionFunc in Adonis do
-			-- Just in case they already loaded a custom anticheat bypass for adonis
-			if typeof(DetectionFunc) ~= "function" or isfunctionhooked(DetectionFunc) then
-				continue
-			end
-
-			wax.shared.Hooks[DetectionFunc] = wax.shared.Hooking.HookFunction(
-				DetectionFunc,
-				function(action, info, nocrash)
-					coroutine.yield(coroutine.running())
-					return task.wait(9e9)
-				end
-			)
-		end
-	end
-
-	return true
-end
-
-return Adonis
-
-end)() end,
-    [41] = function()local wax,script,require=ImportGlobals(41)local ImportGlobals return (function(...)--[[
-	Improved Button Component for Nova
-	Enhanced button with better visual feedback and animations
-]]
-
-local Constants = require(script.Parent.Constants)
-local Interface = require(script.Parent.Interface)
-
-local ImprovedButton = {}
-
-type ButtonConfig = {
-	Text: string?,
-	Icon: string?,
-	Size: UDim2?,
-	Position: UDim2?,
-	AnchorPoint: Vector2?,
-	BackgroundColor: Color3?,
-	HoverColor: Color3?,
-	ActiveColor: Color3?,
-	TextSize: number?,
-	CornerRadius: UDim?,
-	OnClick: (() -> ())?,
-	Parent: Instance?,
-	LayoutOrder: number?,
-}
-
-function ImprovedButton.Create(config: ButtonConfig)
-	local button = Interface.New("TextButton", {
-		Size = config.Size or UDim2.fromOffset(100, 36),
-		Position = config.Position or UDim2.fromScale(0, 0),
-		AnchorPoint = config.AnchorPoint or Vector2.new(0, 0),
-		BackgroundColor3 = config.BackgroundColor or Constants.Colors.Accent.Primary,
-		Text = config.Icon and "" or (config.Text or "Button"),
-		TextSize = config.TextSize or Constants.TextSize.Regular,
-		TextColor3 = Constants.Colors.Text.Primary,
-		AutoButtonColor = false,
-		LayoutOrder = config.LayoutOrder or 0,
-		Parent = config.Parent,
-		
-		["UICorner"] = {
-			CornerRadius = config.CornerRadius or Constants.CornerRadius.Medium,
-		},
-		
-		["UIStroke"] = {
-			ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-			Color = Constants.Colors.Border.Primary,
-			Thickness = Constants.StrokeThickness.Thin,
-		},
-	})
-	
-	-- Add padding if text is present
-	if not config.Icon or config.Text then
-		Interface.New("UIPadding", {
-			PaddingLeft = Constants.Padding.Medium,
-			PaddingRight = Constants.Padding.Medium,
-			PaddingTop = Constants.Padding.Small,
-			PaddingBottom = Constants.Padding.Small,
-			Parent = button,
-		})
-	end
-	
-	-- Add icon if specified
-	if config.Icon then
-		local Icons = require(script.Parent.Icons)
-		local iconImage = Interface.NewIcon(config.Icon, {
-			Size = config.Text and Constants.Sizes.Icon.Medium or Constants.Sizes.Icon.Large,
-			Position = config.Text and UDim2.fromOffset(8, 0) or UDim2.fromScale(0.5, 0.5),
-			AnchorPoint = config.Text and Vector2.new(0, 0.5) or Vector2.new(0.5, 0.5),
-			SizeConstraint = Enum.SizeConstraint.RelativeYY,
-			Parent = button,
-		})
-		
-		-- If both icon and text, add text label
-		if config.Text then
-			Interface.New("TextLabel", {
-				Text = config.Text,
-				TextSize = config.TextSize or Constants.TextSize.Regular,
-				TextColor3 = Constants.Colors.Text.Primary,
-				Size = UDim2.new(1, -36, 1, 0),
-				Position = UDim2.fromOffset(32, 0),
-				TextXAlignment = Enum.TextXAlignment.Left,
-				BackgroundTransparency = 1,
-				Parent = button,
-			})
-		end
-	end
-	
-	-- Hover animation
-	local originalColor = config.BackgroundColor or Constants.Colors.Accent.Primary
-	local hoverColor = config.HoverColor or Constants.Colors.Accent.Hover
-	local activeColor = config.ActiveColor or Constants.Colors.Accent.Active
-	
-	button.MouseEnter:Connect(function()
-		wax.shared.TweenService:Create(
-			button,
-			Constants.TweenInfo.Default,
-			{ BackgroundColor3 = hoverColor }
-		):Play()
-	end)
-	
-	button.MouseLeave:Connect(function()
-		wax.shared.TweenService:Create(
-			button,
-			Constants.TweenInfo.Default,
-			{ BackgroundColor3 = originalColor }
-		):Play()
-	end)
-	
-	button.MouseButton1Down:Connect(function()
-		wax.shared.TweenService:Create(
-			button,
-			Constants.TweenInfo.Fast,
-			{ BackgroundColor3 = activeColor }
-		):Play()
-	end)
-	
-	button.MouseButton1Up:Connect(function()
-		wax.shared.TweenService:Create(
-			button,
-			Constants.TweenInfo.Fast,
-			{ BackgroundColor3 = hoverColor }
-		):Play()
-	end)
-	
-	-- Click callback
-	if config.OnClick then
-		button.MouseButton1Click:Connect(config.OnClick)
-	end
-	
-	return button
-end
-
-return ImprovedButton
-
-end)() end,
-    [22] = function()local wax,script,require=ImportGlobals(22)local ImportGlobals return (function(...)local Utils = script.Parent.Parent
-
-local LuaEncode = require(script.Parent.Parent.Serializer.LuaEncode)
-local CodeGen = require(script.Parent.Generator)
-
-local SessionExporter = {}
-do
-    local StringMapper = {}
-    StringMapper.__index = StringMapper
-
-    function StringMapper.New()
-        return setmetatable({
-            StringMap = {},
-            StringList = {},
-            NextStringId = 1,
-        }, StringMapper)
-    end
-
-    function StringMapper:GetId(Str)
-        if Str == nil then Str = "nil" end
-        Str = tostring(Str)
-        if not self.StringMap[Str] then
-            self.StringMap[Str] = self.NextStringId
-            self.StringList[tostring(self.NextStringId)] = Str
-            self.NextStringId = self.NextStringId + 1
-        end
-        return self.StringMap[Str]
-    end
-
-    function StringMapper:GetString(Id)
-        return self.StringList[Id]
-    end
-
-    SessionExporter.StringMapper = StringMapper
-end
-
-function SessionExporter:FetchAllLogs()
-	local AllCalls = {}
-
-	for _, LogCategory in next, wax.shared.Logs do
-		for _, Log in next, LogCategory do
-			for Idx, Call in next, Log.Calls do
-				table.insert(AllCalls, setmetatable(Call, {
-					__index = Log
-				}))
-			end
-		end
-	end
-
-	return AllCalls
-end
-
-function SessionExporter:SortCalls(AllCalls)
-	table.sort(AllCalls, function(a, b)
-		local TimeA = a.CreationTime or 0
-		local TimeB = b.CreationTime or 0
-		return TimeA < TimeB
-	end)
-end
-
-function SessionExporter:GetSessionData(AllCalls)
-	local StartTime = wax.shared.NovaStartTime or tick()
-	local EndTime = AllCalls[#AllCalls] and AllCalls[#AllCalls].CreationTime or tick()
-	local Duration = math.max(0.1, EndTime - StartTime)
-	local SessionId = wax.shared.HttpService:GenerateGUID(false)
-
-	return {
-        StartTime = StartTime,
-        EndTime = EndTime,
-        Duration = Duration,
-        SessionId = SessionId,
-    }
-end
-
-function SessionExporter:EscapeHTML(Str)
-	return Str:gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;")
-end
-
-function SessionExporter:SerializeLuauTableForHTML(Table)
-	local SerializedString = LuaEncode(Table, {
-		Prettify = true,
-		InsertCycles = true,
-		DisableNilParentHandler = true,
-	})
-	
-	return self:EscapeHTML(SerializedString)
-end
-
-function SessionExporter:ProcessCalls(AllCalls, SessionData, UpdateProgress)
-	local StringMapper = self.StringMapper.New()
-
-    local Events = {}
-    local AllCallsNum = #AllCalls
-    for Idx, Call in next, AllCalls do
-        if Idx % 500 == 0 then
-            if UpdateProgress then
-                UpdateProgress(`Processing... ({Idx}/{AllCallsNum})`)
-            end
-            task.wait()
-        end
-
-        local ArgsString = self:SerializeLuauTableForHTML(
-            { table.unpack(Call.Arguments, 1, Call.Arguments.n) }
-        )
-
-        local Method = "Unknown"
-        if wax.shared.FunctionForClasses[Call.Type] then
-            Method = wax.shared.FunctionForClasses[Call.Type][Call.Instance.ClassName] or Method
-        end
-
-        local FunctionName, FunctionLine, FunctionSource, FunctionHash = "Unknown", Call.Line or -1, Call.Source or "Unknown", "N/A"
-        local FunctionUpvalues, FunctionProtos, FunctionConstants = "{}", "{}", "{}"
-        do
-            if type(Call.Function) == "table" and Call.IsActor then
-                FunctionName = Call.Function.Name ~= "" and Call.Function.Name or "Anonymous"
-                FunctionSource = Call.Function.Source or "N/A"
-                FunctionLine = Call.Function.Line or -1
-                
-                if not Call.Function.IsC then
-                    FunctionHash = Call.Function.FunctionHash or "N/A"
-                    FunctionUpvalues = self:SerializeLuauTableForHTML(Call.Function.Upvalues)
-                    FunctionProtos = self:SerializeLuauTableForHTML(Call.Function.Protos)
-                    FunctionConstants = self:SerializeLuauTableForHTML(Call.Function.Constants)
-                else
-                    FunctionHash = "N/A (C Closure)"
-                    FunctionUpvalues = "N/A (C Closure)"
-                    FunctionProtos = "N/A (C Closure)"
-                    FunctionConstants = "N/A (C Closure)"
-                end
-            elseif type(Call.Function) == "function" then
-                FunctionName = debug.info(Call.Function, "n")
-            
-                if islclosure(Call.Function) then
-                    FunctionHash = getfunctionhash and getfunctionhash(Call.Function) or "N/A"
-                    FunctionUpvalues = self:SerializeLuauTableForHTML(debug.getupvalues(Call.Function))
-                    FunctionProtos = self:SerializeLuauTableForHTML(debug.getprotos(Call.Function))
-                    FunctionConstants = self:SerializeLuauTableForHTML(debug.getconstants(Call.Function))
-                else
-                    FunctionHash = "N/A (C Closure)"
-                    FunctionUpvalues = "N/A (C Closure)"
-                    FunctionProtos = "N/A (C Closure)"
-                    FunctionConstants = "N/A (C Closure)"
-                end
-            else
-                FunctionName = tostring(Call.Function or "Unknown")
-            end
-
-            if FunctionName == "" then FunctionName = "Anonymous" end
-        end
-
-        local OriginPath = Call.Origin and CodeGen.GetFullPath(Call.Origin, {
-            DisableNilParentHandler = true,
-        }) or "Unknown"
-
-        table.insert(Events, {
-            StringMapper:GetId(Call.Instance.Name),
-            StringMapper:GetId(Call.Instance.ClassName),
-            StringMapper:GetId(CodeGen.GetFullPath(Call.Instance, {
-                DisableNilParentHandler = true,
-            })),
-
-            StringMapper:GetId(Method),
-            (Call.CreationTime or SessionData.StartTime),
-            StringMapper:GetId(OriginPath),
-
-            StringMapper:GetId(ArgsString),
-            StringMapper:GetId(Method),
-
-            StringMapper:GetId(FunctionName),
-            FunctionLine,
-            StringMapper:GetId(FunctionSource),
-            Call.IsExecutor and 1 or 0,
-            Call.IsActor and 1 or 0,
-
-            StringMapper:GetId(FunctionHash),
-            StringMapper:GetId(FunctionUpvalues),
-            StringMapper:GetId(FunctionProtos),
-            StringMapper:GetId(FunctionConstants)
-        })
-    end
-
-    return Events, StringMapper
-end
-
-function SessionExporter:ExportSessionToHTML(Events, StringMapper, SessionData)
-    local Template = Utils.CodeGen.SessionHTMLView.Value
-    local StartDateStr = os.date("%d %b %Y, %H:%M:%S", math.floor(SessionData.StartTime))
-    local EndDateStr = os.date("%d %b %Y, %H:%M:%S", math.floor(SessionData.EndTime))
-
-    local HTML = Template
-        :gsub("{{EVENTS_JSON}}", function() return wax.shared.HttpService:JSONEncode(Events) end)
-        :gsub("{{DICTIONARY_JSON}}", function() return wax.shared.HttpService:JSONEncode(StringMapper.StringList) end)
-        :gsub("{{SESSION_ID}}", SessionData.SessionId)
-        :gsub("{{START_TIME}}", tostring(SessionData.StartTime))
-        :gsub("{{DURATION}}", tostring(SessionData.Duration))
-        :gsub("{{EVENT_COUNT}}", tostring(#Events))
-        :gsub("{{TOTAL_DURATION}}", string.format("%.2f", SessionData.Duration))
-        :gsub("{{PLACE_ID}}", tostring(game.PlaceId))
-        :gsub("{{JOB_ID}}", game.JobId)
-        :gsub("{{DATE}}", StartDateStr)
-        :gsub("{{END_DATE}}", EndDateStr)
-
-    return HTML
-end
-
-return SessionExporter
-end)() end,
-    [43] = function()local wax,script,require=ImportGlobals(43)local ImportGlobals return (function(...)local Interface = require(script.Parent.Interface)
-local Constants = require(script.Parent.Constants)
-local ImageFetcher = require(script.Parent.ImageFetch)
-
-local LoadingScreen = {}
-
-function LoadingScreen.show()
-    local NovaLogo = ImageFetcher.GetImage("Logo")
-    
-    local ScreenGui = Interface.New("ScreenGui", {
-        Name = "NovaLoading",
-        DisplayOrder = 9999,
-        ResetOnSpawn = false,
-        Parent = Interface.GetScreenParent(),
-    })
-
-    local MainFrame = Interface.New("Frame", {
-        Size = UDim2.fromScale(1, 1),
-        BackgroundColor3 = Constants.Colors.Background.Primary,
-        Parent = ScreenGui,
-    })
-
-    local Container = Interface.New("Frame", {
-        AnchorPoint = Vector2.new(0.5, 0.5),
-        Position = UDim2.fromScale(0.5, 0.5),
-        Size = UDim2.fromOffset(300, 300),
-        BackgroundTransparency = 1,
-        Parent = MainFrame,
-    })
-
-    local Logo = Interface.New("ImageLabel", {
-        AnchorPoint = Vector2.new(0.5, 0.5),
-        Position = UDim2.fromScale(0.5, 0.4),
-        Size = UDim2.fromOffset(150, 150),
-        Image = NovaLogo,
-        BackgroundTransparency = 1,
-        ImageTransparency = 1,
-        Parent = Container,
-    })
-
-    local Title = Interface.New("TextLabel", {
-        AnchorPoint = Vector2.new(0.5, 0.5),
-        Position = UDim2.fromScale(0.5, 0.65),
-        Size = UDim2.fromOffset(200, 30),
-        Text = "NOVA PROJECT",
-        TextColor3 = Constants.Colors.Accent.Primary,
-        TextSize = 24,
-        Font = Enum.Font.GothamBold,
-        TextTransparency = 1,
-        BackgroundTransparency = 1,
-        Parent = Container,
-    })
-
-    local Creator = Interface.New("TextLabel", {
-        AnchorPoint = Vector2.new(0.5, 0.5),
-        Position = UDim2.fromScale(0.5, 0.72),
-        Size = UDim2.fromOffset(200, 20),
-        Text = "by 04xSkater",
-        TextColor3 = Constants.Colors.Text.Secondary,
-        TextSize = 14,
-        Font = Enum.Font.Gotham,
-        TextTransparency = 1,
-        BackgroundTransparency = 1,
-        Parent = Container,
-    })
-
-    local ProgressBarBackground = Interface.New("Frame", {
-        AnchorPoint = Vector2.new(0.5, 0.5),
-        Position = UDim2.fromScale(0.5, 0.85),
-        Size = UDim2.fromOffset(200, 4),
-        BackgroundColor3 = Constants.Colors.Background.Tertiary,
-        BorderSizePixel = 0,
-        Parent = Container,
-    })
-
-    local ProgressBar = Interface.New("Frame", {
-        Size = UDim2.fromScale(0, 1),
-        BackgroundColor3 = Constants.Colors.Accent.Primary,
-        BorderSizePixel = 0,
-        Parent = ProgressBarBackground,
-    })
-
-    Interface.New("UICorner", { CornerRadius = UDim.new(1, 0), Parent = ProgressBarBackground })
-    Interface.New("UICorner", { CornerRadius = UDim.new(1, 0), Parent = ProgressBar })
-
-    -- Animations
-    local ts = game:GetService("TweenService")
-    local ti = TweenInfo.new(1, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
-
-    ts:Create(Logo, ti, { ImageTransparency = 0, Position = UDim2.fromScale(0.5, 0.45) }):Play()
-    task.wait(0.5)
-    ts:Create(Title, ti, { TextTransparency = 0 }):Play()
-    task.wait(0.3)
-    ts:Create(Creator, ti, { TextTransparency = 0 }):Play()
-    task.wait(0.5)
-
-    -- Fake loading progress
-    local steps = 20
-    for i = 1, steps do
-        ts:Create(ProgressBar, TweenInfo.new(0.2), { Size = UDim2.fromScale(i/steps, 1) }):Play()
-        task.wait(0.1)
-    end
-
-    task.wait(0.5)
-
-    -- Fade out
-    local fadeTi = TweenInfo.new(0.5, Enum.EasingStyle.Quart, Enum.EasingDirection.In)
-    ts:Create(Logo, fadeTi, { ImageTransparency = 1 }):Play()
-    ts:Create(Title, fadeTi, { TextTransparency = 1 }):Play()
-    ts:Create(Creator, fadeTi, { TextTransparency = 1 }):Play()
-    ts:Create(ProgressBarBackground, fadeTi, { BackgroundTransparency = 1 }):Play()
-    ts:Create(ProgressBar, fadeTi, { BackgroundTransparency = 1 }):Play()
-    ts:Create(MainFrame, fadeTi, { BackgroundTransparency = 1 }):Play()
-
-    task.wait(0.6)
-    ScreenGui:Destroy()
-end
-
-return LoadingScreen
-
-end)() end,
-    [12] = function()local wax,script,require=ImportGlobals(12)local ImportGlobals return (function(...)local ClassesToHook = {
-	RemoteEvent = "OnClientEvent",
-	RemoteFunction = "OnClientInvoke",
-	UnreliableRemoteEvent = "OnClientEvent",
-	BindableEvent = "Event",
-	BindableFunction = "OnInvoke",
-}
-
-type InstancesToHook = RemoteEvent | UnreliableRemoteEvent | RemoteFunction | BindableEvent | BindableFunction
-type MethodsToHook = "OnClientEvent" | "OnClientInvoke" | "Event" | "OnInvoke"
-
-local LogConnectionFunctions = {}
-local SignalMapping = setmetatable({}, { __mode = "kv" })
-
-local function CreateLookupTable(table)
-	local LookupTable = {}
-	for _, Method in next, table do
-		LookupTable[Method] = true
-	end
-	return LookupTable
-end
-
-
---[[
-	Individually logs an incoming remote call.
-
-	@param Instance The instance that was called.
-	@param Method The method that was called (e.g., "OnClientEvent").
-	@param Function The function that was called, if applicable.
-	@param Info The information about the call, including arguments and origin. Can be nil.
-	@param ... The arguments passed from the server to the client.
-	@return boolean Returns true if the call was blocked, false otherwise.
-]]
-local function LogRemote(
-	Instance: InstancesToHook,
-	Method: MethodsToHook,
-	Function: (...any) -> ...any,
-	Info: {
-		Arguments: { [number]: any, n: number },
-		Origin: Instance,
-		Function: (...any) -> ...any,
-		Line: number,
-		IsExecutor: boolean,
-	}
-)
-	if not wax.shared.ShouldIgnore(Instance, getcallingscript()) and not LogConnectionFunctions[Function] then
-		local Log = wax.shared.Logs.Incoming[Instance]
-		if not Log then
-			Log = wax.shared.NewLog(Instance, "Incoming", Method, getcallingscript())
-		end
-
-		if Log.Blocked then
-			return true
-		elseif not Log.Ignored then
-			Log:Call(Info)
-		end
-	end
-
-	return false
-end
-
---[[
-	Creates a function that can be used to pass to `Connect` which will log all the incoming calls. It will additonally add the function to a ignore list (`LogConnectionFunctions`) to prevent unneccessary logging.
-	
-	@param Instance The instance to log.
-	@param Method The method to log (e.g., "OnClientEvent").
-	@return function Returns a function that logs all calls to the given instance and method.
-]]
-local function CreateConnectionFunction(Instance: InstancesToHook, Method: MethodsToHook)
-	local ConnectionFunction = function(...)
-		for _, Connection in pairs(getconnections((Instance :: any)[Method])) do
-			if Connection.ForeignState then
-				continue
-			end
-
-			local Function = typeof(Connection.Function) == "function" and Connection.Function or nil
-			local Thread = Connection.Thread
-
-			local Origin = nil
-
-			if Thread and getscriptfromthread then
-				Origin = getscriptfromthread(Thread)
-			end
-
-			if not Origin and Function then
-				-- ts is unreliable because people could js set the script global to nil
-				-- if only debug.getinfo(Function).source or debug.info(Function, "s") returned an Instance...
-
-				local Script = rawget(getfenv(Function), "script")
-				if typeof(Script) == "Instance" then
-					Origin = Script
-				end
-			end
-
-			LogRemote(Instance, Method, Function, {
-				Arguments = table.pack(...),
-				Origin = Origin,
-				Function = Function,
-				Line = nil,
-				IsExecutor = Function and isexecutorclosure(Function) or false,
-			})
-		end
-	end
-
-	LogConnectionFunctions[ConnectionFunction] = true
-	return ConnectionFunction
-end
-
---[[
-	Creates a function that can be used to pass to callbacks (.OnInvoke & .OnClientInvoke) which will log all the incoming calls.
-	
-	@param Instance The instance to log.
-	@param Method The method to log (e.g., "OnClientEvent").
-	@param Function The original callback of the RemoteFunction
-	@return function Returns a function that logs all function calls to the given instance and method.
-]]
-local function CreateCallbackDetour(Instance: InstancesToHook, Method: MethodsToHook, Callback: (...any) -> ...any)
-	local Detour = function(...)
-		local Origin = nil
-
-		-- May not exist in all executors
-		if getscriptfromthread then
-			Origin = getscriptfromthread(coroutine.running())
-		end
-
-		-- Unreliable method to get script.
-		if not Origin then
-			local Script = rawget(getfenv(Callback), "script")
-			if typeof(Script) == "Instance" then
-				Origin = Script
-			end
-		end
-
-		local FunctionCaller = debug.info(2, "f")
-		local IsExecutor = if typeof(FunctionCaller) == "function"
-			then isexecutorclosure(FunctionCaller)
-			else isexecutorclosure(Callback)
-
-		if
-			LogRemote(Instance, Method, Callback, {
-				Arguments = table.pack(...),
-				Origin = Origin,
-				Function = Callback,
-				Line = nil,
-				IsExecutor = IsExecutor,
-			})
-		then
-			return
-		end
-
-		return Callback(...)
-	end
-
-	if wax.shared.ExecutorSupport["setstackhidden"].IsWorking then
-		setstackhidden(Detour, true)
-	end
-
-	return Detour
-end
-
---[[
-	Handles setting up logging for the appropriate instances.
-
-	@param Instance The instance to handle.
-]]
-local function HandleInstance(Instance: any)
-	if
-		not ClassesToHook[Instance.ClassName]
-		or Instance == wax.shared.Communicator
-		or Instance == wax.shared.ActorCommunicator
-	then
-		return
-	end
-
-	local Method = ClassesToHook[Instance.ClassName]
-
-	if Instance.ClassName == "RemoteEvent" or Instance.ClassName == "UnreliableRemoteEvent" then
-		wax.shared.Connect(Instance.OnClientEvent:Connect(CreateConnectionFunction(Instance, Method)))
-
-		SignalMapping[Instance.OnClientEvent] = Instance
-	elseif Instance.ClassName == "BindableEvent" then
-		wax.shared.Connect(Instance.Event:Connect(CreateConnectionFunction(Instance, Method)))
-
-		SignalMapping[Instance.Event] = Instance
-	elseif Instance.ClassName == "RemoteFunction" or Instance.ClassName == "BindableFunction" then
-		local Success, Callback = pcall(getcallbackvalue, Instance, Method)
-		local IsCallable = (
-			typeof(Callback) == "function"
-			or wax.shared.getrawmetatable(Callback) ~= nil and typeof(wax.shared.getrawmetatable(Callback)["__call"]) == "function"
-			or false
-		)
-
-		if not Success or not IsCallable then
-			return
-		end
-
-		Instance[Method] = CreateCallbackDetour(Instance, Method, Callback)
-	end
-end
-
-wax.shared.Connect(game.DescendantAdded:Connect(HandleInstance))
-
-local CategoryToSearch = { game:QueryDescendants("RemoteEvent, RemoteFunction, UnreliableRemoteEvent, BindableEvent, BindableFunction") }
-if wax.shared.ExecutorSupport["getnilinstances"].IsWorking then
-	table.insert(CategoryToSearch, getnilinstances())
-end
-
-for _, Category in CategoryToSearch do
-	for _, Instance in next, Category do
-		HandleInstance(Instance)
-	end
-end
-
-wax.shared.NewIndexHook = wax.shared.Hooking.HookMetaMethod(game, "__newindex", function(...)
-	local self, key, value = ...
-
-	if typeof(self) ~= "Instance" or not ClassesToHook[self.ClassName] then
-		return wax.shared.NewIndexHook(...)
-	end
-
-	if self.ClassName == "RemoteFunction" or self.ClassName == "BindableFunction" then
-		local Method = ClassesToHook[self.ClassName]
-
-		local IsCallable = (
-			typeof(value) == "function"
-			or wax.shared.getrawmetatable(value) ~= nil and typeof(wax.shared.getrawmetatable(value)["__call"]) == "function"
-			or false
-		)
-
-		if key == Method and IsCallable then
-			return wax.shared.NewIndexHook(self, key, CreateCallbackDetour(self :: InstancesToHook, Method, value))
-		end
-	end
-
-	return wax.shared.NewIndexHook(...)
-end)
-
-local ConnectionKeys = CreateLookupTable({
-	"Connect",
-	"ConnectParallel",
-	"connect",
-	"connectParallel",
-	"once",
-	"Once",
-})
-
-local SignalMetatable = wax.shared.getrawmetatable(Instance.new("Part").Touched)
-wax.shared.Hooks[SignalMetatable.__index] = wax.shared.Hooking.HookFunction(SignalMetatable.__index, function(...)
-	local self, key = ...
-
-	if ConnectionKeys[key] then
-		local Instance = SignalMapping[self]
-		local Connect = wax.shared.Hooks[SignalMetatable.__index](...)
-
-		if not Instance then
-			return Connect
-		end
-
-		local Method = ClassesToHook[Instance.ClassName]
-		wax.shared.Hooks[Connect] = wax.shared.Hooking.HookFunction(Connect, function(...)
-			local _self, callback = ...
-
-			local Result = table.pack(wax.shared.Hooks[Connect](...))
-			local Log = wax.shared.Logs.Incoming[Instance]
-
-			if Log and Log.Blocked then
-				for _, Connection in pairs(getconnections(Instance[Method])) do
-					if not Connection.ForeignState and Connection.Function ~= callback then
-						continue
-					end
-
-					Connection:Disable()
-				end
-			end
-
-			return table.unpack(Result, 1, Result.n)
-		end)
-
-		return Connect
-	end
-
-	return wax.shared.Hooks[SignalMetatable.__index](...)
-end)
-
-end)() end,
     [21] = function()local wax,script,require=ImportGlobals(21)local ImportGlobals return (function(...)local CodeGen = {
 	CleanTable = { ['"'] = '\\"', ["\\"] = "\\\\" },
 	IndentTemplate = string.rep(" ", 4),
@@ -3370,193 +1602,776 @@ end
 return CodeGen
 
 end)() end,
-    [29] = function()local wax,script,require=ImportGlobals(29)local ImportGlobals return (function(...)if not isfolder("Nova") then
-makefolder("Nova")
-end
+    [39] = function()local wax,script,require=ImportGlobals(39)local ImportGlobals return (function(...)local Icons = {}
 
-if not isfile("Nova/Settings.json") then
-writefile("Nova/Settings.json", "{}")
-end
-
-local SaveManager = {
-State = {},
+type Icon = {
+	Url: string,
+	Id: number,
+	IconName: string,
+	ImageRectOffset: Vector2,
+	ImageRectSize: Vector2,
 }
 
-local Success, Error = pcall(function()
-local FileContent = readfile("Nova/Settings.json")
-if FileContent == "" or FileContent == "{}" then
-SaveManager.State = {}
-return
-end
-local Decoded = wax.shared.HttpService:JSONDecode(FileContent)
-if typeof(Decoded) == "table" then
-SaveManager.State = Decoded
-else
-SaveManager.State = {}
-warn("Nova: Settings file contained invalid data type, resetting to defaults")
-end
+local Success, IconsModule = pcall(function()
+	local IconFetchSuccess, IconModuleSource = pcall(request, {
+		Url = "https://raw.githubusercontent.com/deividcomsono/lucide-roblox-direct/refs/heads/main/source.lua",
+		Method = "GET",
+	})
+
+	assert(
+		IconFetchSuccess and IconModuleSource.Success or IconModuleSource.StatusCode >= 200 and IconModuleSource.StatusCode < 300,
+		"Failed to fetch lucide icons direct module source"
+	)
+	return (loadstring(IconModuleSource.Body) :: () -> { Icons: { string }, GetAsset: (Name: string) -> Icon? })()
 end)
 
-if not Success then
-warn("Nova: Failed to load settings - " .. tostring(Error))
-SaveManager.State = {}
+function Icons.GetIcon(iconName: string): Icon?
+	if not Success then
+		return
+	end
+
+	local Success, Icon = pcall(IconsModule.GetAsset, iconName)
+	if not Success then
+		return
+	end
+
+	return Icon
 end
 
--- Default values for new settings
-if SaveManager.State.Theme == nil then SaveManager.State.Theme = "Default" end
-if SaveManager.State.CustomNotifications == nil then SaveManager.State.CustomNotifications = true end
+function Icons.SetIcon(imageInstance: ImageLabel, iconName: string)
+	local Icon: Icon? = Icons.GetIcon(iconName)
+	if not Icon then
+		return
+	end
 
-function SaveManager:SetState(Idx, Value)
-SaveManager.State[Idx] = Value
-pcall(writefile, "Nova/Settings.json", wax.shared.HttpService:JSONEncode(SaveManager.State))
+	imageInstance.Image = Icon.Url
+	imageInstance.ImageRectOffset = Icon.ImageRectOffset
+	imageInstance.ImageRectSize = Icon.ImageRectSize
 end
 
-function SaveManager:GetState(Idx, Default)
-if SaveManager.State[Idx] ~= nil then
-return SaveManager.State[Idx]
-end
-
-return Default
-end
-
-return SaveManager
+return Icons
 
 end)() end,
-    [24] = function()local wax,script,require=ImportGlobals(24)local ImportGlobals return (function(...)wax.shared.Connections = {}
+    [36] = function()local wax,script,require=ImportGlobals(36)local ImportGlobals return (function(...)--[[
+	Enhanced Modal Component for Nova
+	Improved modal with smooth animations and better UX
+]]
 
-wax.shared.Connect = function(Connection)
-	table.insert(wax.shared.Connections, Connection)
-	return Connection
+local Constants = require(script.Parent.Constants)
+local Interface = require(script.Parent.Interface)
+
+local EnhancedModal = {}
+
+type ModalConfig = {
+	Title: string,
+	Icon: string?,
+	Size: UDim2?,
+	MinSize: UDim2?,
+	MaxSize: UDim2?,
+	Resizable: boolean?,
+	Parent: Instance,
+}
+
+function EnhancedModal.Create(config: ModalConfig)
+	local modal = {}
+	
+	-- Background overlay
+	local overlay = Interface.New("TextButton", {
+		BackgroundColor3 = Color3.fromRGB(0, 0, 0),
+		BackgroundTransparency = 1,
+		Size = UDim2.fromScale(1, 1),
+		Text = "",
+		Visible = false,
+		ZIndex = 1000,
+		Parent = config.Parent,
+	})
+	
+	-- Modal container
+	local container = Interface.New("Frame", {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		BackgroundColor3 = Constants.Colors.Background.Secondary,
+		Position = UDim2.fromScale(0.5, 0.5),
+		Size = config.Size or UDim2.fromScale(0.6, 0.7),
+		ZIndex = 1001,
+		Visible = false,
+		Parent = config.Parent,
+		
+		["UICorner"] = {
+			CornerRadius = Constants.CornerRadius.Medium,
+		},
+		
+		["UIStroke"] = {
+			ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+			Color = Constants.Colors.Border.Primary,
+			Thickness = Constants.StrokeThickness.Thin,
+		},
+	})
+	
+	-- Title bar
+	local titleBar = Interface.New("Frame", {
+		BackgroundTransparency = 1,
+		Size = UDim2.new(1, 0, 0, 36),
+		Parent = container,
+		
+		["UIPadding"] = {
+			PaddingLeft = Constants.Padding.Medium,
+			PaddingRight = Constants.Padding.Medium,
+			PaddingTop = Constants.Padding.Medium,
+			PaddingBottom = Constants.Padding.Medium,
+		},
+	})
+	
+	-- Title text
+	local titleText = Interface.New("TextLabel", {
+		Text = config.Title,
+		TextSize = Constants.TextSize.Large,
+		TextColor3 = Constants.Colors.Text.Primary,
+		TextTruncate = Enum.TextTruncate.AtEnd,
+		Size = UDim2.new(1, -60, 1, 0),
+		Position = UDim2.fromScale(0.5, 0.5),
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		BackgroundTransparency = 1,
+		Parent = titleBar,
+	})
+	
+	-- Icon (if provided)
+	if config.Icon then
+		local Icons = require(script.Parent.Icons)
+		if config.Icon:match("rbxasset") then
+			Interface.New("ImageLabel", {
+				Image = config.Icon,
+				Size = UDim2.fromScale(1, 1),
+				Position = UDim2.fromOffset(4, 0),
+				SizeConstraint = Enum.SizeConstraint.RelativeYY,
+				BackgroundTransparency = 1,
+				Parent = titleBar,
+			})
+		else
+			Interface.NewIcon(config.Icon, {
+				ImageTransparency = 0.5,
+				Size = UDim2.fromScale(1, 1),
+				Position = UDim2.fromOffset(4, 0),
+				SizeConstraint = Enum.SizeConstraint.RelativeYY,
+				Parent = titleBar,
+			})
+		end
+	end
+	
+	-- Close button
+	local closeButton = Interface.New("ImageButton", {
+		Size = UDim2.fromScale(1, 1),
+		SizeConstraint = Enum.SizeConstraint.RelativeYY,
+		AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.fromScale(1, 0),
+		BackgroundTransparency = 1,
+		Parent = titleBar,
+	})
+	
+	local closeIcon = Interface.NewIcon("x", {
+		ImageTransparency = 0.5,
+		Size = UDim2.fromOffset(22, 22),
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.5),
+		SizeConstraint = Enum.SizeConstraint.RelativeYY,
+		Parent = closeButton,
+	})
+	
+	-- Close button hover effects
+	closeButton.MouseEnter:Connect(function()
+		wax.shared.TweenService:Create(
+			closeIcon,
+			Constants.TweenInfo.Default,
+			{ ImageTransparency = 0.25 }
+		):Play()
+	end)
+	
+	closeButton.MouseLeave:Connect(function()
+		wax.shared.TweenService:Create(
+			closeIcon,
+			Constants.TweenInfo.Default,
+			{ ImageTransparency = 0.5 }
+		):Play()
+	end)
+	
+	-- Separator line
+	Interface.New("Frame", {
+		Parent = container,
+		BackgroundColor3 = Constants.Colors.Border.Primary,
+		Size = UDim2.new(1, 0, 0, 1),
+		Position = UDim2.fromOffset(0, 36),
+	})
+	
+	-- Content area
+	local content = Interface.New("ScrollingFrame", {
+		AnchorPoint = Vector2.new(0, 1),
+		BackgroundTransparency = 1,
+		Position = UDim2.fromScale(0, 1),
+		Size = UDim2.new(1, 0, 1, -37),
+		ClipsDescendants = true,
+		ScrollBarThickness = 2,
+		AutomaticCanvasSize = Enum.AutomaticSize.Y,
+		CanvasSize = UDim2.fromScale(0, 0),
+		Parent = container,
+		
+		["UIPadding"] = {
+			PaddingLeft = Constants.Padding.Large,
+			PaddingRight = Constants.Padding.Large,
+			PaddingTop = Constants.Padding.Large,
+			PaddingBottom = Constants.Padding.Large,
+		},
+	})
+	
+	-- Modal methods
+	function modal:Open()
+		overlay.Visible = true
+		container.Visible = true
+		
+		-- Fade in overlay
+		wax.shared.TweenService:Create(
+			overlay,
+			Constants.TweenInfo.Default,
+			{ BackgroundTransparency = 0.5 }
+		):Play()
+		
+		-- Scale in container
+		container.Size = UDim2.fromScale(0, 0)
+		wax.shared.TweenService:Create(
+			container,
+			TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+			{ Size = config.Size or UDim2.fromScale(0.6, 0.7) }
+		):Play()
+	end
+	
+	function modal:Close()
+		-- Fade out overlay
+		local overlayTween = wax.shared.TweenService:Create(
+			overlay,
+			Constants.TweenInfo.Default,
+			{ BackgroundTransparency = 1 }
+		)
+		
+		-- Scale out container
+		local containerTween = wax.shared.TweenService:Create(
+			container,
+			TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.In),
+			{ Size = UDim2.fromScale(0, 0) }
+		)
+		
+		overlayTween:Play()
+		containerTween:Play()
+		
+		containerTween.Completed:Connect(function()
+			overlay.Visible = false
+			container.Visible = false
+		end)
+	end
+	
+	function modal:GetContent()
+		return content
+	end
+	
+	function modal:SetTitle(newTitle: string)
+		titleText.Text = newTitle
+	end
+	
+	-- Connect close button
+	closeButton.MouseButton1Click:Connect(function()
+		modal:Close()
+	end)
+	
+	-- Connect overlay click to close
+	overlay.MouseButton1Click:Connect(function()
+		modal:Close()
+	end)
+	
+	modal.Container = container
+	modal.Content = content
+	modal.Overlay = overlay
+	
+	return modal
 end
 
-wax.shared.Disconnect = function(Connection)
-	Connection:Disconnect()
+return EnhancedModal
 
-	local Index = table.find(wax.shared.Connections, Connection)
-	if Index then
-		table.remove(wax.shared.Connections, Index)
+end)() end,
+    [43] = function()local wax,script,require=ImportGlobals(43)local ImportGlobals return (function(...)local Interface = require(script.Parent.Interface)
+local ImageFetcher = require(script.Parent.ImageFetch)
+
+local LoadingScreen = {}
+
+-- Nova Blue Color (from logo)
+local NOVA_BLUE = Color3.fromRGB(0, 174, 255)
+local BACKGROUND_COLOR = Color3.fromRGB(10, 10, 12)
+local SECONDARY_TEXT = Color3.fromRGB(180, 190, 200)
+
+function LoadingScreen.show()
+    local NovaLogo = ImageFetcher.GetImage("Logo")
+    
+    local ScreenGui = Interface.New("ScreenGui", {
+        Name = "NovaLoading",
+        DisplayOrder = 9999,
+        ResetOnSpawn = false,
+        Parent = Interface.GetScreenParent(),
+    })
+
+    local MainFrame = Interface.New("Frame", {
+        Size = UDim2.fromScale(1, 1),
+        BackgroundColor3 = BACKGROUND_COLOR,
+        Parent = ScreenGui,
+    })
+
+    local Container = Interface.New("Frame", {
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        Position = UDim2.fromScale(0.5, 0.5),
+        Size = UDim2.fromOffset(300, 300),
+        BackgroundTransparency = 1,
+        Parent = MainFrame,
+    })
+
+    local Logo = Interface.New("ImageLabel", {
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        Position = UDim2.fromScale(0.5, 0.4),
+        Size = UDim2.fromOffset(150, 150),
+        Image = NovaLogo,
+        BackgroundTransparency = 1,
+        ImageTransparency = 1,
+        Parent = Container,
+    })
+
+    local Title = Interface.New("TextLabel", {
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        Position = UDim2.fromScale(0.5, 0.65),
+        Size = UDim2.fromOffset(200, 30),
+        Text = "NOVA PROJECT",
+        TextColor3 = NOVA_BLUE,
+        TextSize = 24,
+        Font = Enum.Font.GothamBold,
+        TextTransparency = 1,
+        BackgroundTransparency = 1,
+        Parent = Container,
+    })
+
+    local Creator = Interface.New("TextLabel", {
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        Position = UDim2.fromScale(0.5, 0.72),
+        Size = UDim2.fromOffset(200, 20),
+        Text = "by 04xSkater",
+        TextColor3 = NOVA_BLUE,
+        TextSize = 14,
+        Font = Enum.Font.Gotham,
+        TextTransparency = 1,
+        BackgroundTransparency = 1,
+        Parent = Container,
+    })
+
+    local ProgressBarBackground = Interface.New("Frame", {
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        Position = UDim2.fromScale(0.5, 0.85),
+        Size = UDim2.fromOffset(200, 4),
+        BackgroundColor3 = Color3.fromRGB(30, 30, 40),
+        BorderSizePixel = 0,
+        Parent = Container,
+    })
+
+    local ProgressBar = Interface.New("Frame", {
+        Size = UDim2.fromScale(0, 1),
+        BackgroundColor3 = NOVA_BLUE,
+        BorderSizePixel = 0,
+        Parent = ProgressBarBackground,
+    })
+
+    Interface.New("UICorner", { CornerRadius = UDim.new(1, 0), Parent = ProgressBarBackground })
+    Interface.New("UICorner", { CornerRadius = UDim.new(1, 0), Parent = ProgressBar })
+
+    -- Animations
+    local ts = game:GetService("TweenService")
+    local ti = TweenInfo.new(1, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
+
+    ts:Create(Logo, ti, { ImageTransparency = 0, Position = UDim2.fromScale(0.5, 0.45) }):Play()
+    task.wait(0.5)
+    ts:Create(Title, ti, { TextTransparency = 0 }):Play()
+    task.wait(0.3)
+    ts:Create(Creator, ti, { TextTransparency = 0 }):Play()
+    task.wait(0.5)
+
+    -- Fake loading progress
+    local steps = 20
+    for i = 1, steps do
+        ts:Create(ProgressBar, TweenInfo.new(0.2), { Size = UDim2.fromScale(i/steps, 1) }):Play()
+        task.wait(0.1)
+    end
+
+    task.wait(0.5)
+
+    -- Fade out
+    local fadeTi = TweenInfo.new(0.5, Enum.EasingStyle.Quart, Enum.EasingDirection.In)
+    ts:Create(Logo, fadeTi, { ImageTransparency = 1 }):Play()
+    ts:Create(Title, fadeTi, { TextTransparency = 1 }):Play()
+    ts:Create(Creator, fadeTi, { TextTransparency = 1 }):Play()
+    ts:Create(ProgressBarBackground, fadeTi, { BackgroundTransparency = 1 }):Play()
+    ts:Create(ProgressBar, fadeTi, { BackgroundTransparency = 1 }):Play()
+    ts:Create(MainFrame, fadeTi, { BackgroundTransparency = 1 }):Play()
+
+    task.wait(0.6)
+    ScreenGui:Destroy()
+end
+
+return LoadingScreen
+
+end)() end,
+    [22] = function()local wax,script,require=ImportGlobals(22)local ImportGlobals return (function(...)local Utils = script.Parent.Parent
+
+local LuaEncode = require(script.Parent.Parent.Serializer.LuaEncode)
+local CodeGen = require(script.Parent.Generator)
+
+local SessionExporter = {}
+do
+    local StringMapper = {}
+    StringMapper.__index = StringMapper
+
+    function StringMapper.New()
+        return setmetatable({
+            StringMap = {},
+            StringList = {},
+            NextStringId = 1,
+        }, StringMapper)
+    end
+
+    function StringMapper:GetId(Str)
+        if Str == nil then Str = "nil" end
+        Str = tostring(Str)
+        if not self.StringMap[Str] then
+            self.StringMap[Str] = self.NextStringId
+            self.StringList[tostring(self.NextStringId)] = Str
+            self.NextStringId = self.NextStringId + 1
+        end
+        return self.StringMap[Str]
+    end
+
+    function StringMapper:GetString(Id)
+        return self.StringList[Id]
+    end
+
+    SessionExporter.StringMapper = StringMapper
+end
+
+function SessionExporter:FetchAllLogs()
+	local AllCalls = {}
+
+	for _, LogCategory in next, wax.shared.Logs do
+		for _, Log in next, LogCategory do
+			for Idx, Call in next, Log.Calls do
+				table.insert(AllCalls, setmetatable(Call, {
+					__index = Log
+				}))
+			end
+		end
+	end
+
+	return AllCalls
+end
+
+function SessionExporter:SortCalls(AllCalls)
+	table.sort(AllCalls, function(a, b)
+		local TimeA = a.CreationTime or 0
+		local TimeB = b.CreationTime or 0
+		return TimeA < TimeB
+	end)
+end
+
+function SessionExporter:GetSessionData(AllCalls)
+	local StartTime = wax.shared.NovaStartTime or tick()
+	local EndTime = AllCalls[#AllCalls] and AllCalls[#AllCalls].CreationTime or tick()
+	local Duration = math.max(0.1, EndTime - StartTime)
+	local SessionId = wax.shared.HttpService:GenerateGUID(false)
+
+	return {
+        StartTime = StartTime,
+        EndTime = EndTime,
+        Duration = Duration,
+        SessionId = SessionId,
+    }
+end
+
+function SessionExporter:EscapeHTML(Str)
+	return Str:gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;")
+end
+
+function SessionExporter:SerializeLuauTableForHTML(Table)
+	local SerializedString = LuaEncode(Table, {
+		Prettify = true,
+		InsertCycles = true,
+		DisableNilParentHandler = true,
+	})
+	
+	return self:EscapeHTML(SerializedString)
+end
+
+function SessionExporter:ProcessCalls(AllCalls, SessionData, UpdateProgress)
+	local StringMapper = self.StringMapper.New()
+
+    local Events = {}
+    local AllCallsNum = #AllCalls
+    for Idx, Call in next, AllCalls do
+        if Idx % 500 == 0 then
+            if UpdateProgress then
+                UpdateProgress(`Processing... ({Idx}/{AllCallsNum})`)
+            end
+            task.wait()
+        end
+
+        local ArgsString = self:SerializeLuauTableForHTML(
+            { table.unpack(Call.Arguments, 1, Call.Arguments.n) }
+        )
+
+        local Method = "Unknown"
+        if wax.shared.FunctionForClasses[Call.Type] then
+            Method = wax.shared.FunctionForClasses[Call.Type][Call.Instance.ClassName] or Method
+        end
+
+        local FunctionName, FunctionLine, FunctionSource, FunctionHash = "Unknown", Call.Line or -1, Call.Source or "Unknown", "N/A"
+        local FunctionUpvalues, FunctionProtos, FunctionConstants = "{}", "{}", "{}"
+        do
+            if type(Call.Function) == "table" and Call.IsActor then
+                FunctionName = Call.Function.Name ~= "" and Call.Function.Name or "Anonymous"
+                FunctionSource = Call.Function.Source or "N/A"
+                FunctionLine = Call.Function.Line or -1
+                
+                if not Call.Function.IsC then
+                    FunctionHash = Call.Function.FunctionHash or "N/A"
+                    FunctionUpvalues = self:SerializeLuauTableForHTML(Call.Function.Upvalues)
+                    FunctionProtos = self:SerializeLuauTableForHTML(Call.Function.Protos)
+                    FunctionConstants = self:SerializeLuauTableForHTML(Call.Function.Constants)
+                else
+                    FunctionHash = "N/A (C Closure)"
+                    FunctionUpvalues = "N/A (C Closure)"
+                    FunctionProtos = "N/A (C Closure)"
+                    FunctionConstants = "N/A (C Closure)"
+                end
+            elseif type(Call.Function) == "function" then
+                FunctionName = debug.info(Call.Function, "n")
+            
+                if islclosure(Call.Function) then
+                    FunctionHash = getfunctionhash and getfunctionhash(Call.Function) or "N/A"
+                    FunctionUpvalues = self:SerializeLuauTableForHTML(debug.getupvalues(Call.Function))
+                    FunctionProtos = self:SerializeLuauTableForHTML(debug.getprotos(Call.Function))
+                    FunctionConstants = self:SerializeLuauTableForHTML(debug.getconstants(Call.Function))
+                else
+                    FunctionHash = "N/A (C Closure)"
+                    FunctionUpvalues = "N/A (C Closure)"
+                    FunctionProtos = "N/A (C Closure)"
+                    FunctionConstants = "N/A (C Closure)"
+                end
+            else
+                FunctionName = tostring(Call.Function or "Unknown")
+            end
+
+            if FunctionName == "" then FunctionName = "Anonymous" end
+        end
+
+        local OriginPath = Call.Origin and CodeGen.GetFullPath(Call.Origin, {
+            DisableNilParentHandler = true,
+        }) or "Unknown"
+
+        table.insert(Events, {
+            StringMapper:GetId(Call.Instance.Name),
+            StringMapper:GetId(Call.Instance.ClassName),
+            StringMapper:GetId(CodeGen.GetFullPath(Call.Instance, {
+                DisableNilParentHandler = true,
+            })),
+
+            StringMapper:GetId(Method),
+            (Call.CreationTime or SessionData.StartTime),
+            StringMapper:GetId(OriginPath),
+
+            StringMapper:GetId(ArgsString),
+            StringMapper:GetId(Method),
+
+            StringMapper:GetId(FunctionName),
+            FunctionLine,
+            StringMapper:GetId(FunctionSource),
+            Call.IsExecutor and 1 or 0,
+            Call.IsActor and 1 or 0,
+
+            StringMapper:GetId(FunctionHash),
+            StringMapper:GetId(FunctionUpvalues),
+            StringMapper:GetId(FunctionProtos),
+            StringMapper:GetId(FunctionConstants)
+        })
+    end
+
+    return Events, StringMapper
+end
+
+function SessionExporter:ExportSessionToHTML(Events, StringMapper, SessionData)
+    local Template = Utils.CodeGen.SessionHTMLView.Value
+    local StartDateStr = os.date("%d %b %Y, %H:%M:%S", math.floor(SessionData.StartTime))
+    local EndDateStr = os.date("%d %b %Y, %H:%M:%S", math.floor(SessionData.EndTime))
+
+    local HTML = Template
+        :gsub("{{EVENTS_JSON}}", function() return wax.shared.HttpService:JSONEncode(Events) end)
+        :gsub("{{DICTIONARY_JSON}}", function() return wax.shared.HttpService:JSONEncode(StringMapper.StringList) end)
+        :gsub("{{SESSION_ID}}", SessionData.SessionId)
+        :gsub("{{START_TIME}}", tostring(SessionData.StartTime))
+        :gsub("{{DURATION}}", tostring(SessionData.Duration))
+        :gsub("{{EVENT_COUNT}}", tostring(#Events))
+        :gsub("{{TOTAL_DURATION}}", string.format("%.2f", SessionData.Duration))
+        :gsub("{{PLACE_ID}}", tostring(game.PlaceId))
+        :gsub("{{JOB_ID}}", game.JobId)
+        :gsub("{{DATE}}", StartDateStr)
+        :gsub("{{END_DATE}}", EndDateStr)
+
+    return HTML
+end
+
+return SessionExporter
+end)() end,
+    [35] = function()local wax,script,require=ImportGlobals(35)local ImportGlobals return (function(...)local Drag = {
+	Dragging = false,
+	Frame = nil,
+	FramePosition = nil,
+	FrameSize = nil, -- Added to store initial frame size
+	StartPosition = nil,
+	ChangedConnection = nil,
+	Callback = nil,
+}
+
+local Helper = require(script.Parent.Helper)
+
+local function DefaultCallback(_, Input: InputObject)
+	local Delta = Input.Position - Drag.StartPosition
+	local FramePosition: UDim2 = Drag.FramePosition
+
+	if wax.shared.GetDPIScale then
+		Delta = Delta / wax.shared.GetDPIScale()
+	end
+
+	Drag.Frame.Position = UDim2.new(
+		FramePosition.X.Scale,
+		FramePosition.X.Offset + Delta.X,
+		FramePosition.Y.Scale,
+		FramePosition.Y.Offset + Delta.Y
+	)
+end
+
+function Drag.Setup(Frame: GuiObject, DragFrame: GuiObject, Callback: (Info: {}, Input: InputObject) -> () | nil)
+	Callback = Callback or DefaultCallback
+
+	DragFrame.InputBegan:Connect(function(Input: InputObject)
+		if not Helper.IsClickInput(Input) then
+			return
+		end
+
+		Drag.Dragging = true
+		Drag.Frame = Frame
+		Drag.FramePosition = Frame.Position
+		Drag.StartPosition = Input.Position
+		Drag.FrameSize = Frame.Size
+		Drag.Callback = Callback
+
+		Drag.ChangedConnection = Input.Changed:Connect(function()
+			if Input.UserInputState ~= Enum.UserInputState.End then
+				return
+			end
+
+			Drag.Dragging = false
+			Drag.Frame = nil
+			Drag.Callback = nil
+
+			if Drag.ChangedConnection and Drag.ChangedConnection.Connected then
+				Drag.ChangedConnection:Disconnect()
+				Drag.ChangedConnection = nil
+			end
+		end)
+	end)
+end
+
+wax.shared.Connect(wax.shared.UserInputService.InputChanged:Connect(function(Input: InputObject)
+	if Drag.Dragging and Drag.Callback and Helper.IsMoveInput(Input) then
+		Drag.Callback(Drag, Input)
+	end
+end))
+
+return Drag
+
+end)() end,
+    [19] = function()local wax,script,require=ImportGlobals(19)local ImportGlobals return (function(...)local Adonis = {
+	Name = "Adonis",
+	Game = "*",
+}
+
+local AdonisAnticheatThreads = {}
+function Adonis.Detect()
+	if not getreg or not getgc or not isfunctionhooked then
+		return false
+	end
+
+	local AdonisDetected = false
+
+	for _, thread in getreg() do
+		if typeof(thread) ~= "thread" then
+			continue
+		end
+
+		local Source = debug.info(thread, 1, "s")
+		if Source and (Source:match(".Core.Anti") or Source:match(".Plugins.Anti_Cheat")) then
+			AdonisDetected = true
+			table.insert(AdonisAnticheatThreads, thread)
+		end
+	end
+
+	return AdonisDetected
+end
+
+function Adonis.Bypass()
+	for _, thread in AdonisAnticheatThreads do
+		pcall(coroutine.close, thread)
+	end
+
+	local AdonisTables = {}
+	if filtergc then
+		local ContendorAdonisTables = filtergc("table", {
+			Keys = { "Detected", "RLocked" }
+		}, false)
+
+		for _, AdonisTable in ContendorAdonisTables do
+			if typeof(rawget(AdonisTable, "Detected")) ~= "function" then continue end
+			table.insert(AdonisTables, AdonisTable)
+		end
+	else
+		for _, Table in getgc(true) do
+			if typeof(Table) ~= "table" then
+				continue
+			end
+	
+			local IsAdonisOrigin = typeof(rawget(Table, "Detected")) == "function" and rawget(Table, "RLocked")
+			if not IsAdonisOrigin then continue end
+
+			table.insert(AdonisTables, Table)
+		end
+	end
+
+	for _, Adonis in AdonisTables do
+		for _, DetectionFunc in Adonis do
+			-- Just in case they already loaded a custom anticheat bypass for adonis
+			if typeof(DetectionFunc) ~= "function" or isfunctionhooked(DetectionFunc) then
+				continue
+			end
+
+			wax.shared.Hooks[DetectionFunc] = wax.shared.Hooking.HookFunction(
+				DetectionFunc,
+				function(action, info, nocrash)
+					coroutine.yield(coroutine.running())
+					return task.wait(9e9)
+				end
+			)
+		end
 	end
 
 	return true
 end
 
-return {}
-end)() end,
-    [33] = function()local wax,script,require=ImportGlobals(33)local ImportGlobals return (function(...)local Animations = {
-	TweenInfo = TweenInfo.new(0.25, Enum.EasingStyle.Exponential),
-	Exclusions = {},
-	Expectations = { In = {}, Out = {} },
-}
-
-local function GetTransparencyProperty(object)
-	if table.find(Animations.Exclusions, object) then
-		return nil
-	end
-
-	if object:IsA("TextButton") or object:IsA("TextLabel") or object:IsA("TextBox") then
-		return { "TextTransparency" }
-	elseif object:IsA("CanvasGroup") then
-		return { "GroupTransparency" }
-	elseif object:IsA("Frame") then
-		return { "BackgroundTransparency" }
-	elseif object:IsA("ScrollingFrame") then
-		return { "ScrollBarImageTransparency" }
-	elseif object:IsA("ImageLabel") or object:IsA("ImageButton") then
-		return { "ImageTransparency", "BackgroundTransparency" }
-	elseif object:IsA("UIStroke") then
-		return { "Transparency" }
-	end
-
-	return nil
-end
-
-local function BuildPropertyTable(properties, type, object)
-	if Animations.Expectations[type][object] then
-		return Animations.Expectations[type][object]
-	end
-
-	local propTable = {}
-	for _, prop in properties do
-		propTable[prop] = type == "In" and 0 or 1
-	end
-	return propTable
-end
-
-function Animations.FadeOut(object, time)
-	local tweenInfo = time and TweenInfo.new(time, Enum.EasingStyle.Exponential) or Animations.TweenInfo
-	local properties = GetTransparencyProperty(object)
-
-	if not properties then
-		return
-	end
-
-	wax.shared.TweenService:Create(object, tweenInfo, BuildPropertyTable(properties, "Out", object)):Play()
-
-	if object:IsA("CanvasGroup") then
-		return
-	end
-
-	for _, child in object:GetDescendants() do
-		local prop = GetTransparencyProperty(child)
-		if not prop then
-			continue
-		end
-
-		wax.shared.TweenService:Create(child, tweenInfo, BuildPropertyTable(prop, "Out", child)):Play()
-	end
-end
-
-function Animations.FadeIn(object, time)
-	local tweenInfo = time and TweenInfo.new(time, Enum.EasingStyle.Exponential) or Animations.TweenInfo
-	local property = GetTransparencyProperty(object)
-
-	if property then
-		wax.shared.TweenService:Create(object, tweenInfo, BuildPropertyTable(property, "In", object)):Play()
-	end
-
-	if object:IsA("CanvasGroup") then
-		return
-	end
-
-	for _, child in object:GetDescendants() do
-		local prop = GetTransparencyProperty(child)
-		if not prop then
-			continue
-		end
-
-		wax.shared.TweenService:Create(child, tweenInfo, BuildPropertyTable(prop, "In", child)):Play()
-	end
-end
-
-function Animations.AddFadeExclusion(object)
-	local prop = GetTransparencyProperty(object)
-	if not prop then
-		return
-	end
-
-	table.insert(Animations.Exclusions, object)
-end
-
-function Animations.AddFadeExclusions(objects)
-	for _, object in objects do
-		local prop = GetTransparencyProperty(object)
-		if not prop then
-			continue
-		end
-
-		table.insert(Animations.Exclusions, object)
-	end
-end
-
-function Animations.SetFadeExpectation(type: "In" | "Out", object: GuiBase2d, properties: { [string]: any })
-	if not Animations.Expectations[type] then
-		return
-	end
-
-	Animations.Expectations[type][object] = properties
-end
-
-return Animations
+return Adonis
 
 end)() end,
     [37] = function()local wax,script,require=ImportGlobals(37)local ImportGlobals return (function(...)local UIHelper = {}
@@ -3629,6 +2444,1226 @@ function UIHelper.QuickSerializeArgument(Argument)
 end
 
 return UIHelper
+
+end)() end,
+    [41] = function()local wax,script,require=ImportGlobals(41)local ImportGlobals return (function(...)--[[
+	Improved Button Component for Nova
+	Enhanced button with better visual feedback and animations
+]]
+
+local Constants = require(script.Parent.Constants)
+local Interface = require(script.Parent.Interface)
+
+local ImprovedButton = {}
+
+type ButtonConfig = {
+	Text: string?,
+	Icon: string?,
+	Size: UDim2?,
+	Position: UDim2?,
+	AnchorPoint: Vector2?,
+	BackgroundColor: Color3?,
+	HoverColor: Color3?,
+	ActiveColor: Color3?,
+	TextSize: number?,
+	CornerRadius: UDim?,
+	OnClick: (() -> ())?,
+	Parent: Instance?,
+	LayoutOrder: number?,
+}
+
+function ImprovedButton.Create(config: ButtonConfig)
+	local button = Interface.New("TextButton", {
+		Size = config.Size or UDim2.fromOffset(100, 36),
+		Position = config.Position or UDim2.fromScale(0, 0),
+		AnchorPoint = config.AnchorPoint or Vector2.new(0, 0),
+		BackgroundColor3 = config.BackgroundColor or Constants.Colors.Accent.Primary,
+		Text = config.Icon and "" or (config.Text or "Button"),
+		TextSize = config.TextSize or Constants.TextSize.Regular,
+		TextColor3 = Constants.Colors.Text.Primary,
+		AutoButtonColor = false,
+		LayoutOrder = config.LayoutOrder or 0,
+		Parent = config.Parent,
+		
+		["UICorner"] = {
+			CornerRadius = config.CornerRadius or Constants.CornerRadius.Medium,
+		},
+		
+		["UIStroke"] = {
+			ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+			Color = Constants.Colors.Border.Primary,
+			Thickness = Constants.StrokeThickness.Thin,
+		},
+	})
+	
+	-- Add padding if text is present
+	if not config.Icon or config.Text then
+		Interface.New("UIPadding", {
+			PaddingLeft = Constants.Padding.Medium,
+			PaddingRight = Constants.Padding.Medium,
+			PaddingTop = Constants.Padding.Small,
+			PaddingBottom = Constants.Padding.Small,
+			Parent = button,
+		})
+	end
+	
+	-- Add icon if specified
+	if config.Icon then
+		local Icons = require(script.Parent.Icons)
+		local iconImage = Interface.NewIcon(config.Icon, {
+			Size = config.Text and Constants.Sizes.Icon.Medium or Constants.Sizes.Icon.Large,
+			Position = config.Text and UDim2.fromOffset(8, 0) or UDim2.fromScale(0.5, 0.5),
+			AnchorPoint = config.Text and Vector2.new(0, 0.5) or Vector2.new(0.5, 0.5),
+			SizeConstraint = Enum.SizeConstraint.RelativeYY,
+			Parent = button,
+		})
+		
+		-- If both icon and text, add text label
+		if config.Text then
+			Interface.New("TextLabel", {
+				Text = config.Text,
+				TextSize = config.TextSize or Constants.TextSize.Regular,
+				TextColor3 = Constants.Colors.Text.Primary,
+				Size = UDim2.new(1, -36, 1, 0),
+				Position = UDim2.fromOffset(32, 0),
+				TextXAlignment = Enum.TextXAlignment.Left,
+				BackgroundTransparency = 1,
+				Parent = button,
+			})
+		end
+	end
+	
+	-- Hover animation
+	local originalColor = config.BackgroundColor or Constants.Colors.Accent.Primary
+	local hoverColor = config.HoverColor or Constants.Colors.Accent.Hover
+	local activeColor = config.ActiveColor or Constants.Colors.Accent.Active
+	
+	button.MouseEnter:Connect(function()
+		wax.shared.TweenService:Create(
+			button,
+			Constants.TweenInfo.Default,
+			{ BackgroundColor3 = hoverColor }
+		):Play()
+	end)
+	
+	button.MouseLeave:Connect(function()
+		wax.shared.TweenService:Create(
+			button,
+			Constants.TweenInfo.Default,
+			{ BackgroundColor3 = originalColor }
+		):Play()
+	end)
+	
+	button.MouseButton1Down:Connect(function()
+		wax.shared.TweenService:Create(
+			button,
+			Constants.TweenInfo.Fast,
+			{ BackgroundColor3 = activeColor }
+		):Play()
+	end)
+	
+	button.MouseButton1Up:Connect(function()
+		wax.shared.TweenService:Create(
+			button,
+			Constants.TweenInfo.Fast,
+			{ BackgroundColor3 = hoverColor }
+		):Play()
+	end)
+	
+	-- Click callback
+	if config.OnClick then
+		button.MouseButton1Click:Connect(config.OnClick)
+	end
+	
+	return button
+end
+
+return ImprovedButton
+
+end)() end,
+    [14] = function()local wax,script,require=ImportGlobals(14)local ImportGlobals return (function(...)local LuaEncode = require(script.Parent.Parent.Utils.Serializer.LuaEncode)
+local CodeGen = require(script.Parent.Parent.Utils.CodeGen.Generator)
+
+local Hooks = script.Parent.Hooks
+
+-- Main Thread Hooks
+for _, Hook in Hooks.Default:GetChildren() do
+	task.spawn(require, Hook)
+end
+
+getgenv().NovaInitialized = true
+
+-- Actors use a different lua vm
+-- This means that our main thread metatable hooks dont apply in the actor's vm
+-- So we need to set up the hooks again in the actor lua vm in order to log everything
+local ActorsUtils = script.Parent.Actors
+
+wax.shared.ActorsEnabled = (
+	wax.shared.ExecutorSupport["run_on_actor"].IsWorking
+	and wax.shared.ExecutorSupport["getactors"].IsWorking
+	and wax.shared.ExecutorSupport["create_comm_channel"].IsWorking
+)
+
+if wax.shared.ActorsEnabled then
+	local ActorEnvironmentCode = ActorsUtils.Environment.Value
+
+	local CommunicationChannelID, Channel = create_comm_channel()
+	wax.shared.ActorCommunicator = Channel
+
+	local AlternativeEnabled = wax.shared.SaveManager:GetState("UseAlternativeHooks", false)
+
+	local IgnorePlayerModule = wax.shared.SaveManager:GetState("IgnorePlayerModule", true)
+	local IngoredRemotesDropdown = wax.shared.SaveManager:GetState("IgnoredRemotesDropdown", {
+		["BindableEvent"] = true,
+		["BindableFunction"] = true,
+	})
+
+	local ActorData = LuaEncode({
+		Token = wax.shared.NovaVerificationToken,
+
+		IgnorePlayerModule = IgnorePlayerModule,
+		IgnoredRemotesDropdown = IngoredRemotesDropdown,
+		UseAlternativeHooks = AlternativeEnabled,
+
+		ExecutorSupport = wax.shared.ExecutorSupport,
+	})
+
+	ActorEnvironmentCode = ActorEnvironmentCode:gsub("NOVA_ACTOR_DATA", ActorData)
+
+	-- Actor Logs Sync Layer
+	local function ReconstructTable(Info, CyclicRefs)
+		local Reconstructed = {}
+
+		for Key, Value in Info do
+			if type(Value) == "table" then
+				if Value["__Function"] and Value["Validation"] == wax.shared.NovaVerificationToken then
+					local FunctionData = table.clone(Value)
+					FunctionData["__Function"] = nil
+					FunctionData["Validation"] = nil
+
+					Reconstructed[Key] = FunctionData
+					continue
+				end
+
+				-- Check for Nova Created Object
+				if not Value["__CyclicRef"] then
+					Reconstructed[Key] = ReconstructTable(Value, CyclicRefs)
+					continue
+				end
+
+				local CyclicId = Value["__Id"]
+
+				if not CyclicRefs[CyclicId] then
+					warn("CyclicRef not found: " .. CyclicId)
+					continue
+				end
+
+				Reconstructed[Key] = CyclicRefs[CyclicId]
+				continue
+			end
+
+			Reconstructed[Key] = Value
+		end
+
+		return Reconstructed
+	end
+
+	wax.shared.Connect(Channel.Event:Connect(function(EventType, ...)
+		local ShouldLogActors = wax.shared.SaveManager:GetState("LogActors", true)
+
+		if not ShouldLogActors then
+			return
+		end
+
+		if EventType ~= "ActorCall" then
+			return
+		end
+
+		local Instance, Type, RawInfo, CyclicRefs = ...
+		if Instance == Channel or Instance == wax.shared.Communicator then
+			return
+		end
+
+		local Method = wax.shared.FunctionForClasses[Type][Instance.ClassName]
+		local Log = wax.shared.Logs[Type][Instance]
+
+		if not Log then
+			Log = wax.shared.NewLog(Instance, Type, Method, RawInfo.Origin)
+		end
+
+		if Log.Blocked then
+			return
+		elseif not Log.Ignored then
+			local ReconstructedInfo = ReconstructTable(RawInfo, CyclicRefs)
+			ReconstructedInfo.IsActor = true
+
+			--// Reconstruct Packed Arguments (BindableEvents omit ["n"] for unknown reason) \\--
+			local Packed = ReconstructedInfo.Arguments
+			local PackedN, PackedData = Packed.n, Packed.Data
+			ReconstructedInfo.Arguments = PackedData
+			ReconstructedInfo.Arguments.n = PackedN
+
+			Log:Call(ReconstructedInfo)
+			wax.shared.Communicator:Fire(Log.Instance, Type, #Log.Calls)
+		end
+	end))
+
+	-- Actor Hooking Code Generation
+	local CodeToRun = ActorEnvironmentCode
+
+	for _, ActorHook in Hooks.Actors:GetChildren() :: { StringValue } do
+		CodeToRun ..= table.concat({
+			"task.spawn(function()",
+			CodeGen:IndentCode(ActorHook.Value, 1),
+			"end)",
+		}, "\n") .. "\n\n"
+	end
+
+	CodeToRun ..= table.concat({
+		"task.spawn(function()",
+		CodeGen:IndentCode(ActorsUtils.Unload.Value, 1),
+		"end)",
+	}, "\n")
+
+	-- Actual Hooking Logic
+	-- The hooking code wont run again if nova is already initialized in that Actor (to address deleted actors aka LuaStateProxy stuff)
+	
+	-- `HookActor` is to address Volcano returning non initialized actors inside their `getactors` function.
+	-- God this code is so ass 🥹
+	local function HookActor(TargetActor: Actor)
+		local Hooked = false
+		repeat
+			Hooked, _ = pcall(run_on_actor, TargetActor, CodeToRun, CommunicationChannelID)
+			task.wait(0.25)
+		until Hooked
+	end
+
+	for _, TargetActor in getactors() do
+		task.spawn(HookActor, TargetActor)
+	end
+
+	wax.shared.Connect(game.DescendantAdded:Connect(function(actor)
+		if not actor:IsA("Actor") then
+			return
+		end
+
+		HookActor(actor)
+	end))
+end
+
+return {}
+
+end)() end,
+    [12] = function()local wax,script,require=ImportGlobals(12)local ImportGlobals return (function(...)local ClassesToHook = {
+	RemoteEvent = "OnClientEvent",
+	RemoteFunction = "OnClientInvoke",
+	UnreliableRemoteEvent = "OnClientEvent",
+	BindableEvent = "Event",
+	BindableFunction = "OnInvoke",
+}
+
+type InstancesToHook = RemoteEvent | UnreliableRemoteEvent | RemoteFunction | BindableEvent | BindableFunction
+type MethodsToHook = "OnClientEvent" | "OnClientInvoke" | "Event" | "OnInvoke"
+
+local LogConnectionFunctions = {}
+local SignalMapping = setmetatable({}, { __mode = "kv" })
+
+local function CreateLookupTable(table)
+	local LookupTable = {}
+	for _, Method in next, table do
+		LookupTable[Method] = true
+	end
+	return LookupTable
+end
+
+
+--[[
+	Individually logs an incoming remote call.
+
+	@param Instance The instance that was called.
+	@param Method The method that was called (e.g., "OnClientEvent").
+	@param Function The function that was called, if applicable.
+	@param Info The information about the call, including arguments and origin. Can be nil.
+	@param ... The arguments passed from the server to the client.
+	@return boolean Returns true if the call was blocked, false otherwise.
+]]
+local function LogRemote(
+	Instance: InstancesToHook,
+	Method: MethodsToHook,
+	Function: (...any) -> ...any,
+	Info: {
+		Arguments: { [number]: any, n: number },
+		Origin: Instance,
+		Function: (...any) -> ...any,
+		Line: number,
+		IsExecutor: boolean,
+	}
+)
+	if not wax.shared.ShouldIgnore(Instance, getcallingscript()) and not LogConnectionFunctions[Function] then
+		local Log = wax.shared.Logs.Incoming[Instance]
+		if not Log then
+			Log = wax.shared.NewLog(Instance, "Incoming", Method, getcallingscript())
+		end
+
+		if Log.Blocked then
+			return true
+		elseif not Log.Ignored then
+			Log:Call(Info)
+		end
+	end
+
+	return false
+end
+
+--[[
+	Creates a function that can be used to pass to `Connect` which will log all the incoming calls. It will additonally add the function to a ignore list (`LogConnectionFunctions`) to prevent unneccessary logging.
+	
+	@param Instance The instance to log.
+	@param Method The method to log (e.g., "OnClientEvent").
+	@return function Returns a function that logs all calls to the given instance and method.
+]]
+local function CreateConnectionFunction(Instance: InstancesToHook, Method: MethodsToHook)
+	local ConnectionFunction = function(...)
+		for _, Connection in pairs(getconnections((Instance :: any)[Method])) do
+			if Connection.ForeignState then
+				continue
+			end
+
+			local Function = typeof(Connection.Function) == "function" and Connection.Function or nil
+			local Thread = Connection.Thread
+
+			local Origin = nil
+
+			if Thread and getscriptfromthread then
+				Origin = getscriptfromthread(Thread)
+			end
+
+			if not Origin and Function then
+				-- ts is unreliable because people could js set the script global to nil
+				-- if only debug.getinfo(Function).source or debug.info(Function, "s") returned an Instance...
+
+				local Script = rawget(getfenv(Function), "script")
+				if typeof(Script) == "Instance" then
+					Origin = Script
+				end
+			end
+
+			LogRemote(Instance, Method, Function, {
+				Arguments = table.pack(...),
+				Origin = Origin,
+				Function = Function,
+				Line = nil,
+				IsExecutor = Function and isexecutorclosure(Function) or false,
+			})
+		end
+	end
+
+	LogConnectionFunctions[ConnectionFunction] = true
+	return ConnectionFunction
+end
+
+--[[
+	Creates a function that can be used to pass to callbacks (.OnInvoke & .OnClientInvoke) which will log all the incoming calls.
+	
+	@param Instance The instance to log.
+	@param Method The method to log (e.g., "OnClientEvent").
+	@param Function The original callback of the RemoteFunction
+	@return function Returns a function that logs all function calls to the given instance and method.
+]]
+local function CreateCallbackDetour(Instance: InstancesToHook, Method: MethodsToHook, Callback: (...any) -> ...any)
+	local Detour = function(...)
+		local Origin = nil
+
+		-- May not exist in all executors
+		if getscriptfromthread then
+			Origin = getscriptfromthread(coroutine.running())
+		end
+
+		-- Unreliable method to get script.
+		if not Origin then
+			local Script = rawget(getfenv(Callback), "script")
+			if typeof(Script) == "Instance" then
+				Origin = Script
+			end
+		end
+
+		local FunctionCaller = debug.info(2, "f")
+		local IsExecutor = if typeof(FunctionCaller) == "function"
+			then isexecutorclosure(FunctionCaller)
+			else isexecutorclosure(Callback)
+
+		if
+			LogRemote(Instance, Method, Callback, {
+				Arguments = table.pack(...),
+				Origin = Origin,
+				Function = Callback,
+				Line = nil,
+				IsExecutor = IsExecutor,
+			})
+		then
+			return
+		end
+
+		return Callback(...)
+	end
+
+	if wax.shared.ExecutorSupport["setstackhidden"].IsWorking then
+		setstackhidden(Detour, true)
+	end
+
+	return Detour
+end
+
+--[[
+	Handles setting up logging for the appropriate instances.
+
+	@param Instance The instance to handle.
+]]
+local function HandleInstance(Instance: any)
+	if
+		not ClassesToHook[Instance.ClassName]
+		or Instance == wax.shared.Communicator
+		or Instance == wax.shared.ActorCommunicator
+	then
+		return
+	end
+
+	local Method = ClassesToHook[Instance.ClassName]
+
+	if Instance.ClassName == "RemoteEvent" or Instance.ClassName == "UnreliableRemoteEvent" then
+		wax.shared.Connect(Instance.OnClientEvent:Connect(CreateConnectionFunction(Instance, Method)))
+
+		SignalMapping[Instance.OnClientEvent] = Instance
+	elseif Instance.ClassName == "BindableEvent" then
+		wax.shared.Connect(Instance.Event:Connect(CreateConnectionFunction(Instance, Method)))
+
+		SignalMapping[Instance.Event] = Instance
+	elseif Instance.ClassName == "RemoteFunction" or Instance.ClassName == "BindableFunction" then
+		local Success, Callback = pcall(getcallbackvalue, Instance, Method)
+		local IsCallable = (
+			typeof(Callback) == "function"
+			or wax.shared.getrawmetatable(Callback) ~= nil and typeof(wax.shared.getrawmetatable(Callback)["__call"]) == "function"
+			or false
+		)
+
+		if not Success or not IsCallable then
+			return
+		end
+
+		Instance[Method] = CreateCallbackDetour(Instance, Method, Callback)
+	end
+end
+
+wax.shared.Connect(game.DescendantAdded:Connect(HandleInstance))
+
+local CategoryToSearch = { game:QueryDescendants("RemoteEvent, RemoteFunction, UnreliableRemoteEvent, BindableEvent, BindableFunction") }
+if wax.shared.ExecutorSupport["getnilinstances"].IsWorking then
+	table.insert(CategoryToSearch, getnilinstances())
+end
+
+for _, Category in CategoryToSearch do
+	for _, Instance in next, Category do
+		HandleInstance(Instance)
+	end
+end
+
+wax.shared.NewIndexHook = wax.shared.Hooking.HookMetaMethod(game, "__newindex", function(...)
+	local self, key, value = ...
+
+	if typeof(self) ~= "Instance" or not ClassesToHook[self.ClassName] then
+		return wax.shared.NewIndexHook(...)
+	end
+
+	if self.ClassName == "RemoteFunction" or self.ClassName == "BindableFunction" then
+		local Method = ClassesToHook[self.ClassName]
+
+		local IsCallable = (
+			typeof(value) == "function"
+			or wax.shared.getrawmetatable(value) ~= nil and typeof(wax.shared.getrawmetatable(value)["__call"]) == "function"
+			or false
+		)
+
+		if key == Method and IsCallable then
+			return wax.shared.NewIndexHook(self, key, CreateCallbackDetour(self :: InstancesToHook, Method, value))
+		end
+	end
+
+	return wax.shared.NewIndexHook(...)
+end)
+
+local ConnectionKeys = CreateLookupTable({
+	"Connect",
+	"ConnectParallel",
+	"connect",
+	"connectParallel",
+	"once",
+	"Once",
+})
+
+local SignalMetatable = wax.shared.getrawmetatable(Instance.new("Part").Touched)
+wax.shared.Hooks[SignalMetatable.__index] = wax.shared.Hooking.HookFunction(SignalMetatable.__index, function(...)
+	local self, key = ...
+
+	if ConnectionKeys[key] then
+		local Instance = SignalMapping[self]
+		local Connect = wax.shared.Hooks[SignalMetatable.__index](...)
+
+		if not Instance then
+			return Connect
+		end
+
+		local Method = ClassesToHook[Instance.ClassName]
+		wax.shared.Hooks[Connect] = wax.shared.Hooking.HookFunction(Connect, function(...)
+			local _self, callback = ...
+
+			local Result = table.pack(wax.shared.Hooks[Connect](...))
+			local Log = wax.shared.Logs.Incoming[Instance]
+
+			if Log and Log.Blocked then
+				for _, Connection in pairs(getconnections(Instance[Method])) do
+					if not Connection.ForeignState and Connection.Function ~= callback then
+						continue
+					end
+
+					Connection:Disable()
+				end
+			end
+
+			return table.unpack(Result, 1, Result.n)
+		end)
+
+		return Connect
+	end
+
+	return wax.shared.Hooks[SignalMetatable.__index](...)
+end)
+
+end)() end,
+    [34] = function()local wax,script,require=ImportGlobals(34)local ImportGlobals return (function(...)--[[
+UI Constants for Nova
+Centralized styling values for consistent theming
+Customized for 04xSkater
+]]
+
+local Constants = {}
+
+-- Corner Radius
+Constants.CornerRadius = {
+Large = UDim.new(0, 10),
+Medium = UDim.new(0, 8),
+Small = UDim.new(0, 6),
+Round = UDim.new(1, 0),
+}
+
+-- Theme Definitions
+Constants.Themes = {
+    Default = {
+        Background = {
+            Primary = Color3.fromRGB(15, 15, 15),
+            Secondary = Color3.fromRGB(20, 20, 20),
+            Tertiary = Color3.fromRGB(10, 10, 10),
+        },
+        Accent = {
+            Primary = Color3.fromRGB(25, 25, 25),
+            Hover = Color3.fromRGB(30, 30, 30),
+            Active = Color3.fromRGB(50, 50, 50),
+            Light = Color3.fromRGB(200, 200, 200),
+        },
+        Border = {
+            Primary = Color3.fromRGB(30, 30, 30),
+            Secondary = Color3.fromRGB(40, 40, 40),
+        }
+    },
+    Nova = {
+        Background = {
+            Primary = Color3.fromRGB(10, 10, 12),
+            Secondary = Color3.fromRGB(15, 15, 20),
+            Tertiary = Color3.fromRGB(5, 5, 7),
+        },
+        Accent = {
+            Primary = Color3.fromRGB(0, 174, 255), -- Electric Blue from Logo
+            Hover = Color3.fromRGB(0, 190, 255),
+            Active = Color3.fromRGB(0, 150, 220),
+            Light = Color3.fromRGB(255, 255, 255),
+        },
+        Border = {
+            Primary = Color3.fromRGB(30, 30, 40),
+            Secondary = Color3.fromRGB(0, 174, 255), -- Blue border for highlights
+        }
+    }
+}
+
+-- Current active colors (will be updated by Window.luau)
+Constants.Colors = {}
+
+function Constants.ApplyTheme(themeName)
+    local theme = Constants.Themes[themeName] or Constants.Themes.Default
+    
+    Constants.Colors.Background = theme.Background
+    Constants.Colors.Accent = theme.Accent
+    Constants.Colors.Border = theme.Border
+    
+    -- Static Colors
+    Constants.Colors.Status = {
+        Success = Color3.fromRGB(52, 199, 89),
+        Warning = Color3.fromRGB(255, 153, 0),
+        Error = Color3.fromRGB(255, 69, 58),
+        Info = theme.Accent.Primary,
+    }
+    Constants.Colors.Text = {
+        Primary = Color3.fromRGB(255, 255, 255),
+        Secondary = Color3.fromRGB(180, 190, 200),
+        Tertiary = Color3.fromRGB(120, 130, 140),
+    }
+end
+
+-- Default initialization
+Constants.ApplyTheme("Default")
+
+-- Padding
+Constants.Padding = {
+None = UDim.new(0, 0),
+XSmall = UDim.new(0, 2),
+Small = UDim.new(0, 4),
+Medium = UDim.new(0, 6),
+Large = UDim.new(0, 8),
+XLarge = UDim.new(0, 12),
+}
+
+-- Spacing
+Constants.Spacing = {
+None = UDim.new(0, 0),
+XSmall = UDim.new(0, 2),
+Small = UDim.new(0, 4),
+Medium = UDim.new(0, 6),
+Large = UDim.new(0, 8),
+XLarge = UDim.new(0, 15),
+}
+
+-- Text Sizes
+Constants.TextSize = {
+Small = 14,
+Medium = 15,
+Regular = 16,
+Large = 17,
+XLarge = 18,
+}
+
+-- Tween Info
+Constants.TweenInfo = {
+Default = TweenInfo.new(0.2, Enum.EasingStyle.Exponential),
+Fast = TweenInfo.new(0.1, Enum.EasingStyle.Exponential),
+Slow = TweenInfo.new(0.3, Enum.EasingStyle.Exponential),
+}
+
+-- Sizes
+Constants.Sizes = {
+Button = {
+Small = UDim2.fromOffset(24, 24),
+Medium = UDim2.fromOffset(30, 30),
+Large = UDim2.fromOffset(36, 36),
+},
+Icon = {
+Small = UDim2.fromOffset(16, 16),
+Medium = UDim2.fromOffset(20, 20),
+Large = UDim2.fromOffset(24, 24),
+},
+}
+
+-- Transparency
+Constants.Transparency = {
+Opaque = 0,
+SemiTransparent = 0.5,
+Transparent = 1,
+}
+
+-- Stroke Thickness
+Constants.StrokeThickness = {
+Thin = 1,
+Medium = 2,
+Thick = 3,
+}
+
+return Constants
+
+end)() end,
+    [29] = function()local wax,script,require=ImportGlobals(29)local ImportGlobals return (function(...)if not isfolder("Nova") then
+makefolder("Nova")
+end
+
+if not isfile("Nova/Settings.json") then
+writefile("Nova/Settings.json", "{}")
+end
+
+local SaveManager = {
+State = {},
+}
+
+local Success, Error = pcall(function()
+local FileContent = readfile("Nova/Settings.json")
+if FileContent == "" or FileContent == "{}" then
+SaveManager.State = {}
+return
+end
+local Decoded = wax.shared.HttpService:JSONDecode(FileContent)
+if typeof(Decoded) == "table" then
+SaveManager.State = Decoded
+else
+SaveManager.State = {}
+warn("Nova: Settings file contained invalid data type, resetting to defaults")
+end
+end)
+
+if not Success then
+warn("Nova: Failed to load settings - " .. tostring(Error))
+SaveManager.State = {}
+end
+
+-- Default values for new settings
+if SaveManager.State.Theme == nil then SaveManager.State.Theme = "Default" end
+if SaveManager.State.CustomNotifications == nil then SaveManager.State.CustomNotifications = true end
+
+function SaveManager:SetState(Idx, Value)
+SaveManager.State[Idx] = Value
+pcall(writefile, "Nova/Settings.json", wax.shared.HttpService:JSONEncode(SaveManager.State))
+end
+
+function SaveManager:GetState(Idx, Default)
+if SaveManager.State[Idx] ~= nil then
+return SaveManager.State[Idx]
+end
+
+return Default
+end
+
+return SaveManager
+
+end)() end,
+    [24] = function()local wax,script,require=ImportGlobals(24)local ImportGlobals return (function(...)wax.shared.Connections = {}
+
+wax.shared.Connect = function(Connection)
+	table.insert(wax.shared.Connections, Connection)
+	return Connection
+end
+
+wax.shared.Disconnect = function(Connection)
+	Connection:Disconnect()
+
+	local Index = table.find(wax.shared.Connections, Connection)
+	if Index then
+		table.remove(wax.shared.Connections, Index)
+	end
+
+	return true
+end
+
+return {}
+end)() end,
+    [38] = function()local wax,script,require=ImportGlobals(38)local ImportGlobals return (function(...)--[[
+
+Luau syntax highlighter with studio colors
+Based on: https://devforum.roblox.com/t/realtime-richtext-lua-syntax-highlighting/2500399
+
+]]
+
+local Highlighter = {
+	Colors = {
+		Keyword = "#f86d7c",
+		String = "#adf195",
+		Number = "#ffc600",
+		Nil = "#ffc600",
+		Boolean = "#ffc600",
+		Function = "#f86d7c",
+		Self = "#f86d7c",
+		Local = "#f86d7c",
+		Text = "#ffffff",
+		LocalMethod = "#fdfbac",
+		LocalProperty = "#61a1f1",
+		BuiltIn = "#84d6f7",
+		Comment = "#666666",
+	},
+
+	Keywords = {
+		Lua = {
+			"and",
+			"break",
+			"or",
+			"else",
+			"elseif",
+			"if",
+			"then",
+			"until",
+			"repeat",
+			"while",
+			"do",
+			"for",
+			"in",
+			"end",
+			"local",
+			"return",
+			"function",
+			"export",
+		},
+		Roblox = {
+			"game",
+			"workspace",
+			"script",
+			"math",
+			"string",
+			"table",
+			"task",
+			"wait",
+			"select",
+			"next",
+			"Enum",
+			"error",
+			"warn",
+			"tick",
+			"assert",
+			"shared",
+			"loadstring",
+			"tonumber",
+			"tostring",
+			"type",
+			"typeof",
+			"unpack",
+			"print",
+			"Instance",
+			"CFrame",
+			"Vector3",
+			"Vector2",
+			"Color3",
+			"UDim",
+			"UDim2",
+			"Ray",
+			"BrickColor",
+			"OverlapParams",
+			"RaycastParams",
+			"Axes",
+			"Random",
+			"Region3",
+			"Rect",
+			"TweenInfo",
+			"collectgarbage",
+			"not",
+			"utf8",
+			"pcall",
+			"xpcall",
+			"_G",
+			"setmetatable",
+			"getmetatable",
+			"os",
+			"pairs",
+			"ipairs",
+		},
+	},
+}
+
+local function CreateKeywordSet(keywords)
+	local keywordSet = {}
+	for _, keyword in ipairs(keywords) do
+		keywordSet[keyword] = true
+	end
+	return keywordSet
+end
+
+local LuaSet = CreateKeywordSet(Highlighter.Keywords.Lua)
+local RobloxSet = CreateKeywordSet(Highlighter.Keywords.Roblox)
+
+local function GetHighlightColor(tokens, index)
+	local token = tokens[index]
+
+	if tonumber(token) then
+		return Highlighter.Colors.Number
+	elseif token == "nil" then
+		return Highlighter.Colors.Nil
+	elseif token:sub(1, 2) == "--" then
+		return Highlighter.Colors.Comment
+	elseif LuaSet[token] then
+		return Highlighter.Colors.Keyword
+	elseif RobloxSet[token] or getgenv()[token] ~= nil then
+		return Highlighter.Colors.BuiltIn
+	elseif token:sub(1, 1) == '"' or token:sub(1, 1) == "'" then
+		return Highlighter.Colors.String
+	elseif token == "true" or token == "false" then
+		return Highlighter.Colors.Boolean
+	end
+
+	if tokens[index + 1] == "(" then
+		if tokens[index - 1] == ":" then
+			return Highlighter.Colors.LocalMethod
+		end
+		return Highlighter.Colors.LocalMethod
+	end
+
+	if tokens[index - 1] == "." then
+		if tokens[index - 2] == "Enum" then
+			return Highlighter.Colors.BuiltIn
+		end
+		return Highlighter.Colors.LocalProperty
+	end
+
+	return nil
+end
+
+local ArgumentColors = {
+	["boolean"] = Highlighter.Colors.Boolean,
+	["number"] = Highlighter.Colors.Number,
+	["Vector2"] = Highlighter.Colors.Number,
+	["Vector3"] = Highlighter.Colors.Number,
+	["CFrame"] = Highlighter.Colors.Number,
+	["string"] = Highlighter.Colors.String,
+	["EnumItem"] = Highlighter.Colors.BuiltIn,
+	["nil"] = Highlighter.Colors.Nil,
+}
+function Highlighter.GetArgumentColor(Argument)
+	return ArgumentColors[typeof(Argument)] or Highlighter.Colors.Text
+end
+
+function Highlighter.Run(source)
+	local tokens = {}
+	local currentToken = ""
+
+	local inString = false
+	local inComment = false
+	local commentPersist = false
+
+	for i = 1, #source do
+		local character = source:sub(i, i)
+
+		if inComment then
+			if character == "\n" and not commentPersist then
+				table.insert(tokens, currentToken)
+				table.insert(tokens, character)
+				currentToken = ""
+
+				inComment = false
+			elseif source:sub(i - 1, i) == "]]" and commentPersist then
+				currentToken = currentToken .. "]"
+
+				table.insert(tokens, currentToken)
+				currentToken = ""
+
+				inComment = false
+				commentPersist = false
+			else
+				currentToken = currentToken .. character
+			end
+		elseif inString then
+			if character == inString and source:sub(i - 1, i - 1) ~= "\\" or character == "\n" then
+				currentToken = currentToken .. character
+				table.insert(tokens, currentToken)
+				currentToken = ""
+				inString = false
+			else
+				currentToken = currentToken .. character
+			end
+		else
+			if source:sub(i, i + 1) == "--" then
+				table.insert(tokens, currentToken)
+				currentToken = "--"
+				inComment = true
+				commentPersist = source:sub(i + 2, i + 3) == "[["
+				i = i + 1
+			elseif character == '"' or character == "'" then
+				table.insert(tokens, currentToken)
+				currentToken = character
+				inString = character
+			elseif character:match("[%p]") and character ~= "_" then
+				table.insert(tokens, currentToken)
+				table.insert(tokens, character)
+				currentToken = ""
+			elseif character:match("[%w_]") then
+				currentToken = currentToken .. character
+			else
+				table.insert(tokens, currentToken)
+				table.insert(tokens, character)
+				currentToken = ""
+			end
+		end
+	end
+
+	if currentToken ~= "" then
+		table.insert(tokens, currentToken)
+	end
+
+	for i = #tokens, 1, -1 do
+		if tokens[i] == "" then
+			table.remove(tokens, i)
+		end
+	end
+
+	local highlighted = {}
+
+	for i, token in ipairs(tokens) do
+		local highlightColor = GetHighlightColor(tokens, i)
+
+		if highlightColor then
+			local syntax =
+				string.format('<font color="%s">%s</font>', highlightColor, token:gsub("<", "&lt;"):gsub(">", "&gt;"))
+
+			table.insert(highlighted, syntax)
+		else
+			table.insert(highlighted, token)
+		end
+	end
+
+	return table.concat(highlighted)
+end
+
+return Highlighter
+
+end)() end,
+    [28] = function()local wax,script,require=ImportGlobals(28)local ImportGlobals return (function(...)--[[
+
+Pagination Module
+made by deivid and turned into module by upio
+
+]]
+
+local Pagination = {}
+Pagination.__index = Pagination
+
+function Pagination.new(Options: {
+	TotalItems: number,
+	ItemsPerPage: number,
+	CurrentPage: number?,
+	SiblingCount: number?,
+})
+	return setmetatable({
+		TotalItems = Options.TotalItems,
+		ItemsPerPage = Options.ItemsPerPage,
+		CurrentPage = Options.CurrentPage or 1,
+		SiblingCount = Options.SiblingCount or 2,
+	}, Pagination)
+end
+
+function Pagination:GetInfo()
+	local TotalPages = math.ceil(self.TotalItems / self.ItemsPerPage)
+
+	return {
+		TotalItems = self.TotalItems,
+		ItemsPerPage = self.ItemsPerPage,
+		CurrentPage = self.CurrentPage,
+		TotalPages = TotalPages,
+	}
+end
+
+function Pagination:SetItemsPerPage(max: number)
+	self.ItemsPerPage = max
+end
+
+function Pagination:GetIndexRanges(Page: number?)
+	Page = Page or self.CurrentPage
+
+	local TotalPages = math.ceil(self.TotalItems / self.ItemsPerPage)
+	if TotalPages == 0 then
+		return 1, 0
+	end
+	assert(
+		Page <= TotalPages,
+		"Attempted to get invalid page out of range, got " .. Page .. " but max is " .. TotalPages
+	)
+
+	local Start = (((Page or self.CurrentPage) - 1) * self.ItemsPerPage) + 1
+	local End = Start + (self.ItemsPerPage - 1)
+
+	return Start, End
+end
+
+function Pagination:SetPage(Page: number)
+	local TotalPages = math.ceil(self.TotalItems / self.ItemsPerPage)
+	if TotalPages == 0 then
+		self.CurrentPage = 1
+		return
+	end
+	assert(Page <= TotalPages, "Attempted to set page out of range, got " .. Page .. " but max is " .. TotalPages)
+
+	self.CurrentPage = Page
+end
+
+function Pagination:Update(TotalItems: number?, ItemsPerPage: number?)
+	self.TotalItems = TotalItems or self.TotalItems
+	self.ItemsPerPage = ItemsPerPage or self.ItemsPerPage
+end
+
+function Pagination:GetVisualInfo(Page: number?)
+	Page = Page or self.CurrentPage
+
+	local TotalPages = math.ceil(self.TotalItems / self.ItemsPerPage)
+	if TotalPages == 0 then
+		return {}
+	end
+
+	assert(
+		Page <= TotalPages,
+		"Attempted to get invalid page out of range, got " .. Page .. " but max is " .. TotalPages
+	)
+
+	local MaxButtons = 5 + self.SiblingCount * 2
+	local Result = table.create(MaxButtons, "none")
+	if TotalPages <= MaxButtons then
+		for i = 1, TotalPages do
+			Result[i] = i
+		end
+		return Result
+	end
+
+	local LeftSibling = math.max(Page - self.SiblingCount, 1)
+	local RightSibling = math.min(Page + self.SiblingCount, TotalPages)
+
+	local FakeLeft = LeftSibling > 2
+	local FakeRight = RightSibling < TotalPages - 1
+
+	local TotalPageNumbers = math.min(2 * self.SiblingCount + 5, TotalPages)
+	local ItemCount = TotalPageNumbers - 2
+
+	if not FakeLeft and FakeRight then
+		for i = 1, ItemCount do
+			Result[i] = i
+		end
+		Result[ItemCount + 1] = "ellipsis"
+		Result[ItemCount + 2] = TotalPages
+		--return MergeTables(LeftRange, "ellipsis", TotalPages)
+		return Result
+	elseif FakeLeft and not FakeRight then
+		--local RightRange = CreateArray(TotalPages - ItemCount + 1, TotalPages)
+		Result[1] = 1
+		Result[2] = "ellipsis"
+
+		local Index = 3
+		for i = TotalPages - ItemCount + 1, TotalPages do
+			Result[Index] = i
+			Index += 1
+		end
+
+		return Result
+	elseif FakeLeft and FakeRight then
+		--local MiddleRange = CreateArray(LeftSibling, RightSibling)
+		Result[1] = 1
+		Result[2] = "ellipsis"
+		local Index = 3
+
+		for i = LeftSibling, RightSibling do
+			Result[Index] = i
+			Index += 1
+		end
+
+		Result[Index] = "ellipsis"
+		Result[Index + 1] = TotalPages
+
+		return Result
+		--return MergeTables(1, "ellipsis", MiddleRange, "ellipsis", TotalPages)
+	end
+
+	--return CreateArray(1, TotalPages)
+	for i = 1, TotalPages do
+		Result[i] = i
+	end
+	return Result
+end
+
+return Pagination
 
 end)() end,
     [44] = function()local wax,script,require=ImportGlobals(44)local ImportGlobals return (function(...)local Resize = {}
@@ -3929,152 +3964,121 @@ end
 return Resize
 
 end)() end,
-    [34] = function()local wax,script,require=ImportGlobals(34)local ImportGlobals return (function(...)--[[
-UI Constants for Nova
-Centralized styling values for consistent theming
-Customized for 04xSkater
-]]
-
-local Constants = {}
-
--- Corner Radius
-Constants.CornerRadius = {
-Large = UDim.new(0, 10),
-Medium = UDim.new(0, 8),
-Small = UDim.new(0, 6),
-Round = UDim.new(1, 0),
+    [33] = function()local wax,script,require=ImportGlobals(33)local ImportGlobals return (function(...)local Animations = {
+	TweenInfo = TweenInfo.new(0.25, Enum.EasingStyle.Exponential),
+	Exclusions = {},
+	Expectations = { In = {}, Out = {} },
 }
 
--- Theme Definitions
-Constants.Themes = {
-    Default = {
-        Background = {
-            Primary = Color3.fromRGB(15, 15, 15),
-            Secondary = Color3.fromRGB(20, 20, 20),
-            Tertiary = Color3.fromRGB(10, 10, 10),
-        },
-        Accent = {
-            Primary = Color3.fromRGB(25, 25, 25),
-            Hover = Color3.fromRGB(30, 30, 30),
-            Active = Color3.fromRGB(50, 50, 50),
-            Light = Color3.fromRGB(200, 200, 200),
-        },
-        Border = {
-            Primary = Color3.fromRGB(30, 30, 30),
-            Secondary = Color3.fromRGB(40, 40, 40),
-        }
-    },
-    Nova = {
-        Background = {
-            Primary = Color3.fromRGB(10, 10, 12),
-            Secondary = Color3.fromRGB(15, 15, 20),
-            Tertiary = Color3.fromRGB(5, 5, 7),
-        },
-        Accent = {
-            Primary = Color3.fromRGB(0, 174, 255), -- Electric Blue from Logo
-            Hover = Color3.fromRGB(0, 190, 255),
-            Active = Color3.fromRGB(0, 150, 220),
-            Light = Color3.fromRGB(255, 255, 255),
-        },
-        Border = {
-            Primary = Color3.fromRGB(30, 30, 40),
-            Secondary = Color3.fromRGB(0, 174, 255), -- Blue border for highlights
-        }
-    }
-}
+local function GetTransparencyProperty(object)
+	if table.find(Animations.Exclusions, object) then
+		return nil
+	end
 
--- Current active colors (will be updated by Window.luau)
-Constants.Colors = {}
+	if object:IsA("TextButton") or object:IsA("TextLabel") or object:IsA("TextBox") then
+		return { "TextTransparency" }
+	elseif object:IsA("CanvasGroup") then
+		return { "GroupTransparency" }
+	elseif object:IsA("Frame") then
+		return { "BackgroundTransparency" }
+	elseif object:IsA("ScrollingFrame") then
+		return { "ScrollBarImageTransparency" }
+	elseif object:IsA("ImageLabel") or object:IsA("ImageButton") then
+		return { "ImageTransparency", "BackgroundTransparency" }
+	elseif object:IsA("UIStroke") then
+		return { "Transparency" }
+	end
 
-function Constants.ApplyTheme(themeName)
-    local theme = Constants.Themes[themeName] or Constants.Themes.Default
-    
-    Constants.Colors.Background = theme.Background
-    Constants.Colors.Accent = theme.Accent
-    Constants.Colors.Border = theme.Border
-    
-    -- Static Colors
-    Constants.Colors.Status = {
-        Success = Color3.fromRGB(52, 199, 89),
-        Warning = Color3.fromRGB(255, 153, 0),
-        Error = Color3.fromRGB(255, 69, 58),
-        Info = theme.Accent.Primary,
-    }
-    Constants.Colors.Text = {
-        Primary = Color3.fromRGB(255, 255, 255),
-        Secondary = Color3.fromRGB(180, 190, 200),
-        Tertiary = Color3.fromRGB(120, 130, 140),
-    }
+	return nil
 end
 
--- Default initialization
-Constants.ApplyTheme("Default")
+local function BuildPropertyTable(properties, type, object)
+	if Animations.Expectations[type][object] then
+		return Animations.Expectations[type][object]
+	end
 
--- Padding
-Constants.Padding = {
-None = UDim.new(0, 0),
-XSmall = UDim.new(0, 2),
-Small = UDim.new(0, 4),
-Medium = UDim.new(0, 6),
-Large = UDim.new(0, 8),
-XLarge = UDim.new(0, 12),
-}
+	local propTable = {}
+	for _, prop in properties do
+		propTable[prop] = type == "In" and 0 or 1
+	end
+	return propTable
+end
 
--- Spacing
-Constants.Spacing = {
-None = UDim.new(0, 0),
-XSmall = UDim.new(0, 2),
-Small = UDim.new(0, 4),
-Medium = UDim.new(0, 6),
-Large = UDim.new(0, 8),
-XLarge = UDim.new(0, 15),
-}
+function Animations.FadeOut(object, time)
+	local tweenInfo = time and TweenInfo.new(time, Enum.EasingStyle.Exponential) or Animations.TweenInfo
+	local properties = GetTransparencyProperty(object)
 
--- Text Sizes
-Constants.TextSize = {
-Small = 14,
-Medium = 15,
-Regular = 16,
-Large = 17,
-XLarge = 18,
-}
+	if not properties then
+		return
+	end
 
--- Tween Info
-Constants.TweenInfo = {
-Default = TweenInfo.new(0.2, Enum.EasingStyle.Exponential),
-Fast = TweenInfo.new(0.1, Enum.EasingStyle.Exponential),
-Slow = TweenInfo.new(0.3, Enum.EasingStyle.Exponential),
-}
+	wax.shared.TweenService:Create(object, tweenInfo, BuildPropertyTable(properties, "Out", object)):Play()
 
--- Sizes
-Constants.Sizes = {
-Button = {
-Small = UDim2.fromOffset(24, 24),
-Medium = UDim2.fromOffset(30, 30),
-Large = UDim2.fromOffset(36, 36),
-},
-Icon = {
-Small = UDim2.fromOffset(16, 16),
-Medium = UDim2.fromOffset(20, 20),
-Large = UDim2.fromOffset(24, 24),
-},
-}
+	if object:IsA("CanvasGroup") then
+		return
+	end
 
--- Transparency
-Constants.Transparency = {
-Opaque = 0,
-SemiTransparent = 0.5,
-Transparent = 1,
-}
+	for _, child in object:GetDescendants() do
+		local prop = GetTransparencyProperty(child)
+		if not prop then
+			continue
+		end
 
--- Stroke Thickness
-Constants.StrokeThickness = {
-Thin = 1,
-Medium = 2,
-Thick = 3,
-}
+		wax.shared.TweenService:Create(child, tweenInfo, BuildPropertyTable(prop, "Out", child)):Play()
+	end
+end
 
-return Constants
+function Animations.FadeIn(object, time)
+	local tweenInfo = time and TweenInfo.new(time, Enum.EasingStyle.Exponential) or Animations.TweenInfo
+	local property = GetTransparencyProperty(object)
+
+	if property then
+		wax.shared.TweenService:Create(object, tweenInfo, BuildPropertyTable(property, "In", object)):Play()
+	end
+
+	if object:IsA("CanvasGroup") then
+		return
+	end
+
+	for _, child in object:GetDescendants() do
+		local prop = GetTransparencyProperty(child)
+		if not prop then
+			continue
+		end
+
+		wax.shared.TweenService:Create(child, tweenInfo, BuildPropertyTable(prop, "In", child)):Play()
+	end
+end
+
+function Animations.AddFadeExclusion(object)
+	local prop = GetTransparencyProperty(object)
+	if not prop then
+		return
+	end
+
+	table.insert(Animations.Exclusions, object)
+end
+
+function Animations.AddFadeExclusions(objects)
+	for _, object in objects do
+		local prop = GetTransparencyProperty(object)
+		if not prop then
+			continue
+		end
+
+		table.insert(Animations.Exclusions, object)
+	end
+end
+
+function Animations.SetFadeExpectation(type: "In" | "Out", object: GuiBase2d, properties: { [string]: any })
+	if not Animations.Expectations[type] then
+		return
+	end
+
+	Animations.Expectations[type][object] = properties
+end
+
+return Animations
 
 end)() end,
     [45] = function()local wax,script,require=ImportGlobals(45)local ImportGlobals return (function(...)--[[[
@@ -5131,6 +5135,13 @@ local ScreenDPIScale = Interface.New("UIScale", {
 		Visible = false, -- Start hidden for loading screen
 	
 		MainUICorner,
+		
+		["UIStroke"] = {
+			ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+			Color = Color3.fromRGB(30, 30, 30),
+			Thickness = 1,
+		},
+		
 		Parent = ScreenGui,
 	})
 
@@ -9235,12 +9246,15 @@ end))
 		
 		LoadingScreen.show()
 		
-		-- Apply theme to main components before showing
-		MainFrame.BackgroundColor3 = Constants.Colors.Background.Primary
+		-- Apply theme to all main components before showing
 		local isNova = savedTheme == "Nova"
-		if isNova then
-			MainFrame.UIStroke.Color = Constants.Colors.Accent.Primary
-		end
+		local borderColor = if isNova then Constants.Colors.Accent.Primary else Constants.Colors.Border.Primary
+		
+		MainFrame.BackgroundColor3 = Constants.Colors.Background.Primary
+		MainFrame.UIStroke.Color = borderColor
+		TopBar.BackgroundColor3 = Constants.Colors.Border.Primary
+		SettingsFrame.UIStroke.Color = borderColor
+		SearchFrame.UIStroke.Color = borderColor
 		
 		MainFrame.Visible = true
 	end)
@@ -10337,13 +10351,6 @@ local ObjectTree = {
         },
         {
             {
-                2,
-                2,
-                {
-                    "ExecutorSupport"
-                }
-            },
-            {
                 15,
                 1,
                 {
@@ -10351,26 +10358,24 @@ local ObjectTree = {
                 },
                 {
                     {
-                        30,
-                        1,
+                        25,
+                        2,
                         {
-                            "Serializer"
-                        },
-                        {
-                            {
-                                31,
-                                2,
-                                {
-                                    "LuaEncode"
-                                }
-                            }
+                            "FileLog"
                         }
                     },
                     {
-                        26,
+                        27,
                         2,
                         {
-                            "Hooking"
+                            "Log"
+                        }
+                    },
+                    {
+                        24,
+                        2,
+                        {
+                            "Connect"
                         }
                     },
                     {
@@ -10380,14 +10385,6 @@ local ObjectTree = {
                             "CodeGen"
                         },
                         {
-                            {
-                                23,
-                                5,
-                                {
-                                    "SessionHTMLView",
-                                    Value = "<!DOCTYPE html>\n<html lang=\"en\">\n  <head>\n    <meta charset=\"UTF-8\" />\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />\n    <title>Nova - Session Viewer</title>\n    <link\n      rel=\"icon\"\n      type=\"image/png\"\n      href=\"https://raw.githubusercontent.com/DizzyUSER69/novaproject/main/nova_project/Assets/Logo.png\"\n    />\n    <style>\n      :root {\n        --bg-color: #0b0b0b;\n        --surface-color: #161b22;\n        --border-color: #30363d;\n        --text-primary: #c9d1d9;\n        --text-secondary: #8b949e;\n        --accent-blue: #58a6ff;\n        --accent-green: #3fb950;\n        --accent-orange: #d29922;\n        --accent-red: #ff7b72;\n        --font-family: \"Inter\", -apple-system, BlinkMacSystemFont, \"Segoe UI\",\n          Helvetica, Arial, sans-serif;\n      }\n\n      body {\n        background-color: var(--bg-color);\n        color: var(--text-primary);\n        font-family: var(--font-family);\n        margin: 0;\n        padding: 0;\n        font-size: 13px;\n        height: 100vh;\n        display: flex;\n        flex-direction: column;\n        overflow: hidden;\n      }\n\n      /* Top Header */\n      .app-header {\n        height: 50px;\n        border-bottom: 1px solid var(--border-color);\n        display: flex;\n        align-items: center;\n        justify-content: space-between;\n        padding: 0 20px;\n        background-color: var(--bg-color);\n        flex-shrink: 0;\n        z-index: 10;\n      }\n\n      .brand {\n        display: flex;\n        align-items: center;\n        gap: 10px;\n        font-size: 16px;\n        font-weight: 600;\n        color: #fff;\n      }\n\n      .brand-icon {\n        width: 20px;\n        height: 20px;\n        background-image: url(\"https://raw.githubusercontent.com/DizzyUSER69/novaproject/main/nova_project/Assets/Logo.png\");\n        background-size: contain;\n        background-repeat: no-repeat;\n        background-position: center;\n      }\n\n      .session-container {\n        position: relative;\n        display: flex;\n        flex-direction: column;\n        align-items: flex-end;\n      }\n\n      .session-info {\n        color: var(--text-secondary);\n        font-family: monospace;\n        font-size: 12px;\n        cursor: pointer;\n        padding: 2px 5px;\n        border-radius: 4px;\n        transition: background-color 0.2s ease;\n        user-select: none;\n      }\n\n      .session-info:hover {\n        background-color: #1c2128;\n      }\n\n      .session-id {\n        color: #fff;\n      }\n\n      .session-tooltip {\n        position: absolute;\n        top: 100%;\n        right: 0;\n        background-color: #1c2128;\n        border: 1px solid var(--border-color);\n        border-radius: 6px;\n        padding: 10px;\n        z-index: 100;\n        width: 250px;\n        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);\n        margin-top: 5px;\n        opacity: 0;\n        transform: translateY(-10px);\n        pointer-events: none;\n        visibility: hidden;\n        transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s;\n      }\n\n      .session-tooltip::before {\n        content: \"\";\n        position: absolute;\n        top: -10px;\n        left: 0;\n        width: 100%;\n        height: 10px;\n        background: transparent;\n      }\n\n      .session-container:hover .session-tooltip,\n      .session-tooltip.visible {\n        opacity: 1;\n        transform: translateY(0);\n        pointer-events: auto;\n        visibility: visible;\n      }\n\n      .tooltip-row {\n        display: flex;\n        justify-content: space-between;\n        margin-bottom: 5px;\n        font-size: 11px;\n      }\n\n      .tooltip-label {\n        color: var(--text-secondary);\n      }\n\n      .tooltip-value {\n        color: var(--text-primary);\n        font-family: monospace;\n        user-select: text;\n      }\n\n      /* Mobile Responsiveness */\n      @media (max-width: 768px) {\n        .app-header {\n          height: auto;\n          flex-wrap: wrap;\n          padding: 10px;\n          gap: 10px;\n        }\n\n        .brand {\n          font-size: 14px;\n        }\n\n        .session-container {\n          align-items: flex-start;\n          display: none;\n          /* Hide session info on mobile to save space */\n        }\n\n        .trace-toolbar {\n          height: auto;\n          flex-wrap: wrap;\n          padding: 10px;\n          gap: 10px;\n          justify-content: space-between;\n        }\n\n        /* Hide non-essential info on mobile */\n        .trace-toolbar > div:first-child,\n        #statsLabel {\n          display: none;\n        }\n\n        .search-widget {\n          width: 100%;\n          order: 3;\n          margin-top: 5px;\n        }\n\n        .view-toggle {\n          width: 100%;\n          display: flex;\n        }\n\n        .view-btn {\n          flex: 1;\n          text-align: center;\n        }\n\n        .row-list {\n          width: 60vw;\n          /* Use viewport width to prevent runaway expansion */\n        }\n\n        .col-list {\n          width: 60vw;\n          flex: none;\n        }\n\n        .details-panel.visible {\n          position: fixed;\n          top: 0;\n          left: 0;\n          width: 100%;\n          height: 100%;\n          z-index: 1000;\n          border-left: none;\n        }\n\n        .details-header-top {\n          margin-top: 10px;\n        }\n\n        /* Fix Details Header Overflow */\n        .details-title-group {\n          min-width: 0;\n          flex: 1;\n          margin-right: 10px;\n        }\n\n        .details-name-large {\n          white-space: nowrap;\n          overflow: hidden;\n          text-overflow: ellipsis;\n        }\n\n        .details-actions {\n          flex-shrink: 0;\n        }\n\n        /* Allow wrapping for paths on mobile */\n        .details-path-row,\n        .origin-row,\n        .remote-path-copy {\n          white-space: normal !important;\n          word-break: break-all;\n        }\n      }\n\n      /* Scrollbars */\n      ::-webkit-scrollbar {\n        width: 10px;\n        height: 10px;\n      }\n\n      ::-webkit-scrollbar-track {\n        background: #0d1117;\n      }\n\n      ::-webkit-scrollbar-thumb {\n        background: #30363d;\n        border-radius: 5px;\n        border: 2px solid #0d1117;\n      }\n\n      ::-webkit-scrollbar-thumb:hover {\n        background: #8b949e;\n      }\n\n      ::-webkit-scrollbar-corner {\n        background: var(--bg-color);\n      }\n\n      /* Heatmap Styles */\n      .heatmap-container {\n        flex: 1;\n        display: none;\n        flex-direction: column;\n        overflow: hidden;\n        background-color: var(--bg-color);\n        position: relative;\n      }\n\n      .heatmap-container.visible {\n        display: flex;\n      }\n\n      .heatmap-canvas {\n        flex: 1;\n        width: 100%;\n        height: 100%;\n      }\n\n      .view-toggle {\n        display: flex;\n        background: #1c2128;\n        border: 1px solid var(--border-color);\n        border-radius: 4px;\n        overflow: hidden;\n      }\n\n      .view-btn {\n        padding: 4px 12px;\n        font-size: 12px;\n        cursor: pointer;\n        color: var(--text-secondary);\n        background: transparent;\n        border: none;\n        transition: all 0.2s;\n      }\n\n      .view-btn.active {\n        background: var(--accent-blue);\n        color: white;\n      }\n\n      .view-btn:hover:not(.active) {\n        background: #30363d;\n      }\n\n      /* Main Layout */\n      .main-container {\n        display: flex;\n        flex: 1;\n        overflow: hidden;\n      }\n\n      /* Left Panel: Trace View */\n      .trace-panel {\n        flex: 1;\n        display: flex;\n        flex-direction: column;\n        border-right: 1px solid var(--border-color);\n        min-width: 0;\n        overflow: hidden;\n      }\n\n      .trace-toolbar {\n        height: 40px;\n        border-bottom: 1px solid var(--border-color);\n        display: flex;\n        align-items: center;\n        padding: 0 10px;\n        gap: 10px;\n        background-color: var(--bg-color);\n        flex-shrink: 0;\n      }\n\n      .search-widget {\n        display: flex;\n        flex-direction: column;\n        background-color: var(--bg-color);\n        border: 1px solid var(--border-color);\n        border-radius: 6px;\n        width: 320px;\n        position: relative;\n        transition: border-color 0.2s ease, border-radius 0.2s ease;\n        box-sizing: border-box;\n      }\n\n      .search-widget:focus-within {\n        border-color: var(--accent-blue);\n      }\n\n      .search-widget:focus-within > .search-options {\n        border-color: var(--accent-blue);\n      }\n\n      .search-widget.expanded {\n        border-bottom-left-radius: 0;\n        border-bottom-right-radius: 0;\n        border-bottom-color: transparent;\n      }\n\n      .search-row {\n        display: flex;\n        align-items: center;\n        padding: 4px;\n      }\n\n      .search-chevron {\n        cursor: pointer;\n        padding: 2px;\n        color: var(--text-secondary);\n        display: flex;\n        align-items: center;\n        justify-content: center;\n        transition: transform 0.2s ease, color 0.2s ease;\n        width: 20px;\n        height: 20px;\n        border-radius: 4px;\n      }\n\n      .search-chevron:hover {\n        background-color: rgba(255, 255, 255, 0.1);\n        color: var(--text-primary);\n      }\n\n      .search-chevron.expanded {\n        transform: rotate(90deg);\n      }\n\n      .search-input-container {\n        flex: 1;\n        display: flex;\n        align-items: center;\n        margin-left: 4px;\n      }\n\n      .search-input {\n        background: transparent;\n        border: none;\n        color: var(--text-primary);\n        font-size: 12px;\n        width: 100%;\n        outline: none;\n        height: 20px;\n      }\n\n      .search-options {\n        transition: border-color 0.2s ease, border-radius 0.2s ease;\n        display: none;\n        padding: 10px;\n        border: 1px solid var(--border-color);\n        border-top: none;\n        background-color: var(--bg-color);\n        flex-direction: column;\n        gap: 12px;\n        position: absolute;\n        top: 100%;\n        left: -1px;\n        right: -1px;\n        z-index: 100;\n        border-bottom-left-radius: 6px;\n        border-bottom-right-radius: 6px;\n        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);\n        box-sizing: border-box;\n      }\n\n      .search-options.visible {\n        display: flex;\n      }\n\n      .time-range-row {\n        display: flex;\n        align-items: center;\n        gap: 8px;\n        font-size: 11px;\n        color: var(--text-secondary);\n      }\n\n      .filter-options-row {\n        display: flex;\n        flex-wrap: wrap;\n        gap: 8px;\n        padding-top: 8px;\n        border-top: 1px solid var(--border-color);\n      }\n\n      .filter-checkbox-label {\n        display: flex;\n        align-items: center;\n        gap: 4px;\n        font-size: 11px;\n        color: var(--text-secondary);\n        cursor: pointer;\n        user-select: none;\n      }\n\n      .filter-checkbox-label:hover {\n        color: var(--text-primary);\n      }\n\n      .filter-checkbox {\n        accent-color: var(--accent-blue);\n      }\n\n      .time-input-styled {\n        background-color: #161b22;\n        border: 1px solid var(--border-color);\n        color: var(--text-primary);\n        border-radius: 4px;\n        padding: 4px 8px;\n        width: 60px;\n        outline: none;\n        font-size: 11px;\n        transition: border-color 0.2s ease;\n        margin: 0 2px;\n      }\n\n      .time-input-styled:focus {\n        border-color: var(--accent-blue);\n      }\n\n      .unit-select {\n        background-color: #161b22;\n        border: 1px solid var(--border-color);\n        color: var(--text-primary);\n        border-radius: 4px;\n        outline: none;\n        font-size: 11px;\n        padding: 3px 6px;\n        cursor: pointer;\n        transition: border-color 0.2s ease;\n      }\n\n      .unit-select:focus {\n        border-color: var(--accent-blue);\n      }\n\n      .trace-header-row {\n        display: flex;\n        height: 30px;\n        border-bottom: 1px solid var(--border-color);\n        background-color: var(--surface-color);\n        font-size: 11px;\n        color: var(--text-secondary);\n        line-height: 30px;\n        flex-shrink: 0;\n      }\n\n      .col-list {\n        width: 300px;\n        padding-left: 15px;\n        border-right: 1px solid var(--border-color);\n        flex-shrink: 0;\n        z-index: 5;\n        background-color: var(--surface-color);\n        box-sizing: border-box;\n        /* Match row-list */\n      }\n\n      .col-timeline {\n        flex: 1;\n        position: relative;\n        overflow: hidden;\n        min-width: calc(100vw - 300px);\n      }\n\n      .timeline-ruler {\n        position: relative;\n        top: 0;\n        left: 0;\n        height: 100%;\n        pointer-events: none;\n      }\n\n      .tick {\n        position: absolute;\n        top: 0;\n        bottom: 0;\n        border-left: 1px solid #30363d;\n        font-size: 10px;\n        color: #484f58;\n        padding-left: 4px;\n      }\n\n      .trace-rows {\n        flex: 1;\n        overflow: auto;\n        /* Ensure both scrollbars appear */\n        position: relative;\n        contain: strict;\n      }\n\n      .virtual-spacer {\n        position: absolute;\n        top: 0;\n        left: 0;\n        width: 1px;\n      }\n\n      .virtual-content {\n        position: absolute;\n        top: 0;\n        left: 0;\n        width: 100%;\n      }\n\n      .trace-row {\n        display: flex;\n        height: 28px;\n        /* align-items: center;  Removed to allow children to stretch */\n        cursor: pointer;\n        /* border-bottom: 1px solid #1c2128; Moved to children */\n        width: fit-content;\n        min-width: 100%;\n        transition: background-color 0.1s ease;\n        box-sizing: border-box;\n      }\n\n      .trace-row:hover {\n        background-color: #1c2128;\n      }\n\n      .trace-row.selected {\n        background-color: rgba(88, 166, 255, 0.1);\n      }\n\n      .trace-row.hidden {\n        display: none;\n      }\n\n      .trace-row:hover * {\n        background-color: #1c2128;\n      }\n\n      .trace-row.selected * {\n        background-color: #1c2333;\n      }\n\n      .row-list {\n        width: 300px;\n        padding-left: 15px;\n        /* Use box-shadow for sticky border to prevent it from disappearing */\n        box-shadow: 1px 0 0 0 var(--border-color);\n        border-right: none;\n        border-bottom: 1px solid #1c2128;\n        /* Added border here */\n        display: flex;\n        align-items: center;\n        overflow: hidden;\n        flex-shrink: 0;\n        box-sizing: border-box;\n        position: sticky;\n        left: 0;\n        background-color: var(--bg-color);\n        z-index: 2;\n        transition: background-color 0.1s ease;\n        height: 100%;\n      }\n\n      .row-timeline {\n        flex: 1;\n        position: relative;\n        height: 100%;\n        overflow: hidden;\n        border-bottom: 1px solid #1c2128;\n        /* Added border here */\n        box-sizing: border-box;\n        /* Ensure border is inside height */\n      }\n\n      .type-icon {\n        width: 16px;\n        height: 16px;\n        margin-right: 8px;\n        flex-shrink: 0;\n        background-size: contain;\n        background-repeat: no-repeat;\n        background-position: center;\n      }\n\n      .remote-name {\n        white-space: nowrap;\n        overflow: hidden;\n        text-overflow: ellipsis;\n        color: var(--text-primary);\n        font-size: 12px;\n      }\n\n      .timeline-marker {\n        position: absolute;\n        top: 10px;\n        height: 8px;\n        min-width: 4px;\n        border-radius: 4px;\n        opacity: 0.9;\n      }\n\n      .timeline-marker.incoming {\n        background: linear-gradient(90deg, var(--accent-green), #2ea043);\n      }\n\n      .timeline-marker.outgoing {\n        background: linear-gradient(90deg, var(--accent-orange), #b08800);\n      }\n\n      /* Right Panel: Details */\n      .details-panel {\n        width: 0;\n        opacity: 0;\n        background-color: var(--bg-color);\n        border-left: 0 solid var(--border-color);\n        display: flex;\n        flex-direction: column;\n        padding: 0;\n        box-sizing: border-box;\n        overflow-y: auto;\n        overflow-x: hidden;\n        position: relative;\n        flex-shrink: 0;\n        transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease,\n          padding 0.3s ease;\n      }\n\n      .details-panel.visible {\n        width: 450px;\n        opacity: 1;\n        padding: 20px;\n        border-left: 1px solid var(--border-color);\n      }\n\n      /* Header */\n      .details-header-top {\n        display: flex;\n        align-items: center;\n        justify-content: space-between;\n        margin-bottom: 10px;\n      }\n\n      .details-title-group {\n        display: flex;\n        align-items: center;\n        gap: 10px;\n      }\n\n      .details-icon-large {\n        width: 32px;\n        height: 32px;\n        background-size: contain;\n        background-repeat: no-repeat;\n        background-position: center;\n      }\n\n      .details-name-large {\n        font-size: 20px;\n        font-weight: 600;\n        color: #fff;\n      }\n\n      .details-actions {\n        display: flex;\n        align-items: center;\n        gap: 10px;\n      }\n\n      .close-btn {\n        cursor: pointer;\n        color: var(--text-secondary);\n        font-size: 20px;\n        transition: color 0.2s ease;\n        line-height: 1;\n      }\n\n      .close-btn:hover {\n        color: #fff;\n      }\n\n      /* Unified Badge Style */\n      .badge-pill {\n        padding: 4px 12px;\n        border-radius: 20px;\n        font-size: 11px;\n        font-weight: 600;\n        text-transform: uppercase;\n        border: 1px solid;\n        letter-spacing: 0.5px;\n        white-space: nowrap;\n      }\n\n      .badge-pill.incoming {\n        color: var(--accent-green);\n        border-color: var(--accent-green);\n      }\n\n      .badge-pill.outgoing {\n        color: var(--accent-orange);\n        border-color: var(--accent-orange);\n      }\n\n      .badge-pill.executor {\n        color: var(--accent-green);\n        border-color: var(--accent-green);\n      }\n\n      .badge-pill.actor {\n        color: var(--accent-red);\n        border-color: var(--accent-red);\n        background: repeating-linear-gradient(\n          45deg,\n          transparent,\n          transparent 2px,\n          rgba(255, 123, 114, 0.1) 2px,\n          rgba(255, 123, 114, 0.1) 4px\n        );\n      }\n\n      .details-path-row {\n        color: var(--text-secondary);\n        font-size: 12px;\n        margin-bottom: 20px;\n        font-family: monospace;\n        white-space: nowrap;\n        text-overflow: ellipsis;\n        overflow: hidden;\n        height: 1.2em;\n      }\n\n      .remote-path-copy {\n        cursor: pointer;\n        color: var(--text-secondary);\n        font-size: 12px;\n        font-weight: normal;\n        transition: color 0.2s ease;\n        white-space: nowrap;\n        overflow: hidden;\n        text-overflow: ellipsis;\n        display: block;\n        width: 25%;\n      }\n\n      .remote-path-copy:hover {\n        color: var(--accent-blue);\n      }\n\n      /* Info Grid 2 */\n      .info-grid-2 {\n        display: flex;\n        gap: 20px;\n        margin-bottom: 25px;\n      }\n\n      .info-item-2 h4 {\n        margin: 0 0 6px 0;\n        color: var(--text-secondary);\n        font-size: 12px;\n        font-weight: normal;\n      }\n\n      .info-item-2 div {\n        font-size: 11px;\n        color: var(--text-primary);\n        font-family: monospace;\n      }\n\n      /* Info Grid */\n      .info-grid {\n        display: grid;\n        grid-template-columns: 1fr 1fr;\n        gap: 20px;\n        margin-bottom: 25px;\n      }\n\n      .info-item h4 {\n        margin: 0 0 6px 0;\n        color: var(--text-secondary);\n        font-size: 12px;\n        font-weight: normal;\n      }\n\n      .info-item div {\n        font-size: 14px;\n        color: var(--text-primary);\n        font-family: monospace;\n      }\n\n      .clickable-path {\n        border-bottom: 1px dashed var(--text-secondary);\n        cursor: pointer;\n        transition: color 0.2s, border-color 0.2s;\n      }\n\n      .clickable-path:hover {\n        color: var(--accent-blue);\n        border-color: var(--accent-blue);\n      }\n\n      /* Content Boxes */\n      .content-box {\n        border: 1px solid var(--border-color);\n        border-radius: 8px;\n        padding: 15px;\n        margin-bottom: 20px;\n        position: relative;\n        background-color: rgba(22, 27, 34, 0.5);\n      }\n\n      .box-title {\n        position: absolute;\n        top: -10px;\n        left: 10px;\n        background-color: var(--bg-color);\n        padding: 0 5px;\n        font-size: 11px;\n        color: var(--text-secondary);\n      }\n\n      .caller-header {\n        display: flex;\n        align-items: center;\n        gap: 10px;\n        margin-bottom: 15px;\n      }\n\n      .caller-icon {\n        color: var(--text-secondary);\n        display: flex;\n        align-items: center;\n        justify-content: center;\n      }\n\n      .caller-icon svg {\n        width: 24px;\n        height: 24px;\n      }\n\n      .caller-info {\n        flex: 1;\n        min-width: 0;\n        /* Critical for flex child truncation */\n      }\n\n      .caller-name {\n        color: var(--accent-blue);\n        font-family: monospace;\n        font-size: 14px;\n        margin-bottom: 2px;\n      }\n\n      .caller-source {\n        color: var(--text-secondary);\n        font-size: 11px;\n        font-family: monospace;\n        height: 1.2em;\n        white-space: nowrap;\n        overflow: hidden;\n        text-overflow: ellipsis;\n        display: block;\n      }\n\n      .flags-row {\n        display: flex;\n        gap: 10px;\n        margin-bottom: 10px;\n        align-items: center;\n      }\n\n      .origin-row {\n        font-size: 12px;\n        color: var(--text-primary);\n        font-family: monospace;\n        display: block;\n        white-space: nowrap;\n        height: 1.2em;\n        overflow: hidden;\n        text-overflow: ellipsis;\n        width: 35%;\n      }\n\n      /* Arguments */\n      .args-content {\n        font-family: \"Consolas\", \"Monaco\", monospace;\n        font-size: 12px;\n        white-space: pre-wrap;\n        overflow-x: auto;\n        color: #e0e0e0;\n        max-height: 300px;\n        overflow-y: auto;\n        line-height: 1.5;\n      }\n\n      /* Copy Button with Animation */\n      .copy-icon-btn {\n        position: absolute;\n        top: 10px;\n        right: 10px;\n        background: transparent;\n        border: 1px solid var(--border-color);\n        border-radius: 4px;\n        color: var(--text-secondary);\n        cursor: pointer;\n        width: 28px;\n        height: 28px;\n        display: flex;\n        align-items: center;\n        justify-content: center;\n        transition: all 0.2s;\n        overflow: hidden;\n        /* Ensure check icon doesn't spill out */\n      }\n\n      .copy-icon-btn:hover {\n        border-color: var(--text-primary);\n        color: var(--text-primary);\n        background-color: var(--surface-color);\n      }\n\n      .copy-icon-btn svg {\n        width: 14px;\n        height: 14px;\n        position: absolute;\n        top: 50%;\n        left: 50%;\n        transform: translate(-50%, -50%) scale(1);\n        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);\n      }\n\n      .copy-icon-btn .icon-check {\n        transform: translate(-50%, -50%) scale(0);\n        color: var(--accent-green);\n      }\n\n      .copy-icon-btn.copied .icon-copy {\n        transform: translate(-50%, -50%) scale(0);\n      }\n\n      .copy-icon-btn.copied .icon-check {\n        transform: translate(-50%, -50%) scale(1);\n      }\n\n      /* Dropdown */\n      .dropdown-menu {\n        position: absolute;\n        top: 42px;\n        /* Button height + spacing */\n        right: 10px;\n        background-color: #1c2128;\n        border: 1px solid var(--border-color);\n        border-radius: 6px;\n        width: 160px;\n        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);\n        z-index: 50;\n        display: none;\n        overflow: hidden;\n      }\n\n      .dropdown-menu.visible {\n        display: block;\n      }\n\n      .dropdown-item {\n        padding: 8px 12px;\n        font-size: 12px;\n        color: var(--text-primary);\n        cursor: pointer;\n        transition: background-color 0.2s;\n        display: flex;\n        align-items: center;\n        gap: 8px;\n      }\n\n      .dropdown-item:hover {\n        background-color: var(--accent-blue);\n        color: #fff;\n      }\n\n      .dropdown-item svg {\n        width: 14px;\n        height: 14px;\n        opacity: 0.7;\n      }\n\n      /* Toast Notification */\n      .toast-container {\n        position: fixed;\n        bottom: 30px;\n        left: 50%;\n        transform: translateX(-50%) translateY(20px);\n        background-color: #1c2128;\n        border: 1px solid var(--border-color);\n        border-radius: 6px;\n        padding: 8px 16px;\n        color: #fff;\n        font-size: 12px;\n        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);\n        opacity: 0;\n        transition: opacity 0.3s, transform 0.3s;\n        pointer-events: none;\n        z-index: 1000;\n        display: flex;\n        align-items: center;\n        gap: 8px;\n      }\n\n      .toast-container.visible {\n        opacity: 1;\n        transform: translateX(-50%) translateY(0);\n      }\n\n      .toast-container svg {\n        width: 16px;\n        height: 16px;\n        color: var(--accent-green);\n      }\n\n      /* Syntax Highlighting */\n      .hl-str {\n        color: #a5d6ff;\n      }\n\n      .hl-num {\n        color: #79c0ff;\n      }\n\n      .hl-bool {\n        color: #ff7b72;\n      }\n\n      .hl-key {\n        color: #7ee787;\n      }\n\n      .hl-nil {\n        color: #ff7b72;\n      }\n\n      .footer {\n        height: 25px;\n        border-top: 1px solid var(--border-color);\n        display: flex;\n        align-items: center;\n        justify-content: space-between;\n        padding: 0 20px;\n        background-color: var(--bg-color);\n        color: var(--text-secondary);\n        font-size: 11px;\n        flex-shrink: 0;\n      }\n    </style>\n  </head>\n\n  <body>\n    <div class=\"app-header\">\n      <a\n        href=\"https://github.com/DizzyUSER69/novaproject/tree/main\"\n        target=\"_blank\"\n        style=\"text-decoration: none\"\n      >\n        <div class=\"brand\">\n          <div class=\"brand-icon\"></div>\n          Nova - Session Viewer\n        </div>\n      </a>\n      <div class=\"session-container\">\n        <div class=\"session-info\">\n          Session / <span class=\"session-id\">{{SESSION_ID}}</span>\n        </div>\n        <div class=\"session-tooltip\">\n          <div class=\"tooltip-row\">\n            <span class=\"tooltip-label\">Start Time (tick)</span>\n            <span class=\"tooltip-value\">{{START_TIME}}</span>\n          </div>\n          <div class=\"tooltip-row\">\n            <span class=\"tooltip-label\">Place ID</span>\n            <span class=\"tooltip-value\">{{PLACE_ID}}</span>\n          </div>\n          <div class=\"tooltip-row\">\n            <span class=\"tooltip-label\">Job ID</span>\n            <span class=\"tooltip-value\">{{JOB_ID}}</span>\n          </div>\n        </div>\n      </div>\n    </div>\n\n    <div class=\"main-container\">\n      <!-- LEFT PANEL WRAPPER -->\n      <div\n        class=\"left-panel-wrapper\"\n        style=\"\n          flex: 1;\n          display: flex;\n          flex-direction: column;\n          border-right: 1px solid var(--border-color);\n          min-width: 0;\n          overflow: hidden;\n        \"\n      >\n        <!-- SHARED TOOLBAR -->\n        <div class=\"trace-toolbar\">\n          <div\n            style=\"\n              font-size: 11px;\n              color: var(--text-secondary);\n              margin-right: 20px;\n            \"\n          >\n            Started: {{DATE}}\n          </div>\n          <div style=\"flex: 1\"></div>\n          <div class=\"view-toggle\">\n            <button class=\"view-btn active\" onclick=\"switchView('timeline')\">\n              Timeline\n            </button>\n            <button class=\"view-btn\" onclick=\"switchView('heatmap')\">\n              Heatmap\n            </button>\n          </div>\n          <div class=\"divider\"></div>\n          <div class=\"search-widget\">\n            <div class=\"search-row\">\n              <div\n                class=\"search-chevron\"\n                onclick=\"toggleSearchOptions()\"\n                id=\"searchChevron\"\n              >\n                <svg\n                  width=\"16\"\n                  height=\"16\"\n                  viewBox=\"0 0 16 16\"\n                  fill=\"currentColor\"\n                >\n                  <path\n                    d=\"M6 4l4 4-4 4\"\n                    stroke=\"currentColor\"\n                    stroke-width=\"1.5\"\n                    fill=\"none\"\n                  />\n                </svg>\n              </div>\n              <div class=\"search-input-container\">\n                <input\n                  type=\"text\"\n                  class=\"search-input\"\n                  id=\"filterInput\"\n                  placeholder=\"Filter events...\"\n                  oninput=\"handleFilterInput()\"\n                />\n              </div>\n            </div>\n            <div class=\"search-options\" id=\"searchOptions\">\n              <div class=\"time-range-row\">\n                <span>Time Range:</span>\n                <input\n                  type=\"number\"\n                  class=\"time-input-styled\"\n                  id=\"minTimeInput\"\n                  placeholder=\"Start\"\n                  oninput=\"handleTimeInput()\"\n                />\n                <span>-</span>\n                <input\n                  type=\"number\"\n                  class=\"time-input-styled\"\n                  id=\"maxTimeInput\"\n                  placeholder=\"End\"\n                  oninput=\"handleTimeInput()\"\n                />\n                <select\n                  class=\"unit-select\"\n                  id=\"timeUnitSelect\"\n                  onchange=\"handleTimeInput()\"\n                >\n                  <option value=\"1\">s</option>\n                  <option value=\"0.001\">ms</option>\n                </select>\n              </div>\n              <div class=\"filter-options-row\">\n                <label class=\"filter-checkbox-label\"\n                  ><input\n                    type=\"checkbox\"\n                    class=\"filter-checkbox\"\n                    id=\"filterIncoming\"\n                    onchange=\"handleFilterInput()\"\n                  />\n                  Incoming</label\n                >\n                <label class=\"filter-checkbox-label\"\n                  ><input\n                    type=\"checkbox\"\n                    class=\"filter-checkbox\"\n                    id=\"filterOutgoing\"\n                    onchange=\"handleFilterInput()\"\n                  />\n                  Outgoing</label\n                >\n                <div\n                  style=\"\n                    width: 1px;\n                    height: 14px;\n                    background: var(--border-color);\n                    margin: 0 4px;\n                  \"\n                ></div>\n                <label class=\"filter-checkbox-label\"\n                  ><input\n                    type=\"checkbox\"\n                    class=\"filter-checkbox\"\n                    id=\"filterActor\"\n                    onchange=\"handleFilterInput()\"\n                  />\n                  Actor</label\n                >\n                <label class=\"filter-checkbox-label\"\n                  ><input\n                    type=\"checkbox\"\n                    class=\"filter-checkbox\"\n                    id=\"filterNonActor\"\n                    onchange=\"handleFilterInput()\"\n                  />\n                  Non-Actor</label\n                >\n                <div\n                  style=\"\n                    width: 1px;\n                    height: 14px;\n                    background: var(--border-color);\n                    margin: 0 4px;\n                  \"\n                ></div>\n                <label class=\"filter-checkbox-label\"\n                  ><input\n                    type=\"checkbox\"\n                    class=\"filter-checkbox\"\n                    id=\"filterArgs\"\n                    onchange=\"handleFilterInput()\"\n                  />\n                  Args</label\n                >\n                <label class=\"filter-checkbox-label\"\n                  ><input\n                    type=\"checkbox\"\n                    class=\"filter-checkbox\"\n                    id=\"filterProto\"\n                    onchange=\"handleFilterInput()\"\n                  />\n                  Proto</label\n                >\n                <label class=\"filter-checkbox-label\"\n                  ><input\n                    type=\"checkbox\"\n                    class=\"filter-checkbox\"\n                    id=\"filterConst\"\n                    onchange=\"handleFilterInput()\"\n                  />\n                  Const</label\n                >\n                <label class=\"filter-checkbox-label\"\n                  ><input\n                    type=\"checkbox\"\n                    class=\"filter-checkbox\"\n                    id=\"filterHash\"\n                    onchange=\"handleFilterInput()\"\n                  />\n                  Hash</label\n                >\n                <label class=\"filter-checkbox-label\"\n                  ><input\n                    type=\"checkbox\"\n                    class=\"filter-checkbox\"\n                    id=\"filterSource\"\n                    onchange=\"handleFilterInput()\"\n                  />\n                  Source</label\n                >\n              </div>\n            </div>\n          </div>\n        </div>\n\n        <!-- TIMELINE VIEW -->\n        <div class=\"trace-panel\" id=\"timelinePanel\" style=\"border-right: none\">\n          <div class=\"trace-header-row\">\n            <div class=\"col-list\">Remote</div>\n            <div class=\"col-timeline\" id=\"timelineHeader\">\n              <div class=\"timeline-ruler\" id=\"ruler\"></div>\n            </div>\n          </div>\n\n          <div class=\"trace-rows\" id=\"rowsContainer\">\n            <div id=\"virtualSpacer\" class=\"virtual-spacer\"></div>\n            <div id=\"virtualContent\" class=\"virtual-content\"></div>\n          </div>\n        </div>\n\n        <!-- HEATMAP VIEW -->\n        <div class=\"heatmap-container\" id=\"heatmapPanel\">\n          <div\n            id=\"heatmapScroll\"\n            style=\"\n              width: 100%;\n              height: 100%;\n              overflow-x: auto;\n              overflow-y: hidden;\n              position: relative;\n            \"\n          >\n            <div\n              id=\"heatmapSpacer\"\n              style=\"\n                height: 1px;\n                width: 100%;\n                position: absolute;\n                top: 0;\n                left: 0;\n                pointer-events: none;\n              \"\n            ></div>\n            <canvas\n              id=\"heatmapCanvas\"\n              class=\"heatmap-canvas\"\n              style=\"\n                position: sticky;\n                left: 0;\n                top: 0;\n                width: 100%;\n                height: 100%;\n              \"\n            ></canvas>\n          </div>\n          <div\n            id=\"heatmapTooltip\"\n            class=\"heatmap-tooltip\"\n            style=\"\n              display: none;\n              position: absolute;\n              background: #1c2128;\n              border: 1px solid #30363d;\n              padding: 4px 8px;\n              border-radius: 4px;\n              font-size: 11px;\n              color: #c9d1d9;\n              pointer-events: none;\n              z-index: 100;\n            \"\n          ></div>\n        </div>\n      </div>\n\n      <!-- RIGHT PANEL -->\n      <div class=\"details-panel\" id=\"detailsPanel\">\n        <div id=\"detailsContent\"></div>\n      </div>\n    </div>\n\n    <div class=\"footer\">\n      <div>Ended: {{END_DATE}}</div>\n      <span\n        id=\"statsLabel\"\n        style=\"\n          color: var(--text-secondary);\n          font-size: 11px;\n          margin-right: 10px;\n        \"\n      >\n        {{EVENT_COUNT}} Events \226\128\162 {{TOTAL_DURATION}}s\n      </span>\n    </div>\n\n    <!-- Toast Notification -->\n    <div id=\"toast\" class=\"toast-container\">\n      <svg\n        xmlns=\"http://www.w3.org/2000/svg\"\n        width=\"24\"\n        height=\"24\"\n        viewBox=\"0 0 24 24\"\n        fill=\"none\"\n        stroke=\"currentColor\"\n        stroke-width=\"2\"\n        stroke-linecap=\"round\"\n        stroke-linejoin=\"round\"\n        class=\"lucide lucide-check\"\n      >\n        <path d=\"M20 6 9 17l-5-5\" />\n      </svg>\n      <span id=\"toastMessage\">Copied to clipboard</span>\n    </div>\n\n    <!-- Data Script -->\n    <script type=\"application/json\" id=\"dictionary-data\">\n      {{DICTIONARY_JSON}}\n    </script>\n    <script type=\"application/json\" id=\"event-data\">\n      {{EVENTS_JSON}}\n    </script>\n\n    <script>\n      // Data Parsing\n      let startTime = {{START_TIME}}; // Seconds\n      const totalDuration = {{DURATION}};\n      const dictionary = JSON.parse(document.getElementById('dictionary-data').textContent);\n      const rawEvents = JSON.parse(document.getElementById('event-data').textContent);\n\n      // Reconstruct Events\n      const allEvents = rawEvents.map(e => ({\n        name: dictionary[e[0]],\n        className: dictionary[e[1]],\n        path: dictionary[e[2]],\n        type: dictionary[e[3]],\n        timestamp: e[4],\n        origin: dictionary[e[5]],\n\n        args: dictionary[e[6]],\n        method: dictionary[e[7]],\n\n        funcName: dictionary[e[8]],\n        funcLine: e[9],\n        funcSource: dictionary[e[10]],\n        isExecutor: e[11] === 1,\n        isActor: e[12] === 1,\n\n        funcHash: dictionary[e[13]],\n        upvalues: dictionary[e[14]],\n        protos: dictionary[e[15]],\n        constants: dictionary[e[16]]\n      }));\n\n      if (allEvents.length > 0) {\n        const minTimestamp = Math.min(...allEvents.map(e => e.timestamp));\n        if (minTimestamp < startTime) {\n          startTime = minTimestamp;\n        }\n      }\n\n      // Preprocess events\n      allEvents.forEach(evt => {\n        evt.relTime = Math.max(0, evt.timestamp - startTime);\n\n        const typeLower = evt.type.toLowerCase();\n        const methodLower = evt.method ? evt.method.toLowerCase() : '';\n\n        if (methodLower.includes('client') || typeLower.includes('client')) {\n          evt.typeClass = 'incoming';\n        } else {\n          evt.typeClass = 'outgoing';\n        }\n      });\n\n      // State\n      let filteredEvents = allEvents;\n      let zoomLevel = 1;\n      let selectedEvent = null;\n      let filterTimeout = null;\n      let filterMinTime = 0;\n      let filterMaxTime = totalDuration;\n\n      // Initialize Time Inputs\n      document.getElementById('minTimeInput').value = \"0\";\n      document.getElementById('maxTimeInput').value = totalDuration.toFixed(2);\n\n      // Virtual Scroll State\n      let lastStartIndex = -1;\n      let lastEndIndex = -1;\n      let isScrolling = false;\n\n      // DOM Elements\n      const rowsContainer = document.getElementById('rowsContainer');\n      const virtualSpacer = document.getElementById('virtualSpacer');\n      const virtualContent = document.getElementById('virtualContent');\n      const rulerContainer = document.getElementById('ruler');\n      const detailsPanel = document.getElementById('detailsPanel');\n      const detailsContent = document.getElementById('detailsContent');\n      const timelineHeader = document.getElementById('timelineHeader');\n      const statsLabel = document.getElementById('statsLabel');\n\n\n      // Heatmap State\n      let currentView = 'timeline';\n      let heatmapZoom = 1;\n      let detailsWasVisible = false;\n      const heatmapCanvas = document.getElementById('heatmapCanvas');\n      const heatmapTooltip = document.getElementById('heatmapTooltip');\n\n      const timelinePanel = document.getElementById('timelinePanel');\n      const heatmapPanel = document.getElementById('heatmapPanel');\n\n      // Heatmap Interaction\n      heatmapCanvas.addEventListener('wheel', (e) => {\n        if (currentView !== 'heatmap') return;\n        e.preventDefault();\n\n        const delta = e.deltaY > 0 ? 1.1 : 0.9;\n        heatmapZoom = Math.max(1, Math.min(50, heatmapZoom * delta));\n        renderHeatmap();\n      }, { passive: false });\n\n      heatmapCanvas.addEventListener('mousemove', (e) => {\n        if (currentView !== 'heatmap') return;\n        const rect = heatmapCanvas.getBoundingClientRect();\n        const x = e.clientX - rect.left;\n        const y = e.clientY - rect.top;\n\n        if (!window.lastHeatmapData) return;\n\n        const { sortedRemotes, rowHeight, binWidth, remotes, maxBinCount, timeBins, binDuration, margin, scrollLeft } = window.lastHeatmapData;\n        const width = heatmapPanel.clientWidth;\n        const height = heatmapPanel.clientHeight;\n\n        if (x < margin.left || x > width - margin.right || y < margin.top || y > height - margin.bottom) {\n          heatmapTooltip.style.display = 'none';\n          return;\n        }\n\n        const rowIndex = Math.floor((y - margin.top) / rowHeight);\n\n        // Calculate colIndex based on virtual position (x + scrollLeft)\n        const colIndex = Math.floor((x - margin.left + scrollLeft) / binWidth);\n\n        if (rowIndex >= 0 && rowIndex < sortedRemotes.length && colIndex >= 0 && colIndex < timeBins) {\n          const remote = sortedRemotes[rowIndex];\n          // Calculate count for this bin\n          let count = 0;\n          remotes[remote].forEach(evt => {\n            const binIndex = Math.min(Math.floor(evt.relTime / binDuration), timeBins - 1);\n            if (binIndex === colIndex) count++;\n          });\n\n          heatmapTooltip.style.display = 'block';\n          heatmapTooltip.innerHTML = `<b>${remote}</b><br>Time: ${(colIndex * binDuration).toFixed(1)}s<br>Count: ${count}`;\n\n          const tooltipWidth = heatmapTooltip.offsetWidth;\n          const panelWidth = heatmapPanel.clientWidth;\n\n          let leftPos = x + 10;\n          if (leftPos + tooltipWidth > panelWidth - 10) {\n            leftPos = x - tooltipWidth - 10;\n          }\n\n          heatmapTooltip.style.left = leftPos + 'px';\n          heatmapTooltip.style.top = (y + 10) + 'px';\n        } else {\n          heatmapTooltip.style.display = 'none';\n        }\n      });\n\n      heatmapCanvas.addEventListener('mouseleave', () => {\n        heatmapTooltip.style.display = 'none';\n      });\n\n      document.getElementById('heatmapScroll').addEventListener('scroll', () => {\n        if (currentView === 'heatmap') {\n          renderHeatmap();\n        }\n      });\n\n      function switchView(view) {\n        currentView = view;\n        document.querySelectorAll('.view-btn').forEach(btn => {\n          btn.classList.toggle('active', btn.innerText.toLowerCase() === view);\n        });\n\n        if (view === 'timeline') {\n          timelinePanel.style.display = 'flex';\n          heatmapPanel.classList.remove('visible');\n\n          if (detailsWasVisible) {\n            detailsPanel.classList.add('visible');\n          }\n\n          renderVirtualRows(true);\n        } else {\n          if (detailsPanel.classList.contains('visible')) {\n            detailsWasVisible = true;\n            detailsPanel.classList.remove('visible');\n          } else {\n            detailsWasVisible = false;\n          }\n\n          timelinePanel.style.display = 'none';\n          heatmapPanel.classList.add('visible');\n          renderHeatmap();\n        }\n      }\n\n      function renderHeatmap() {\n        const ctx = heatmapCanvas.getContext('2d');\n        const containerWidth = heatmapPanel.clientWidth;\n        const height = heatmapPanel.clientHeight;\n        const scrollLeft = document.getElementById('heatmapScroll').scrollLeft;\n\n        // Calculate total virtual width\n        const totalWidth = containerWidth * heatmapZoom;\n\n        // Update Spacer\n        document.getElementById('heatmapSpacer').style.width = totalWidth + 'px';\n\n        const dpr = window.devicePixelRatio || 1;\n\n        // Canvas is always viewport size\n        heatmapCanvas.width = containerWidth * dpr;\n        heatmapCanvas.height = height * dpr;\n        ctx.scale(dpr, dpr);\n\n        ctx.fillStyle = '#0d1117';\n        ctx.fillRect(0, 0, containerWidth, height);\n\n        if (filteredEvents.length === 0) return;\n\n        const remotes = {};\n        filteredEvents.forEach(evt => {\n          if (!remotes[evt.name]) remotes[evt.name] = [];\n          remotes[evt.name].push(evt);\n        });\n\n        const sortedRemotes = Object.keys(remotes).sort((a, b) => remotes[b].length - remotes[a].length);\n\n        const margin = { top: 30, right: 20, bottom: 20, left: 150 };\n\n        // Virtual chart width\n        const chartWidth = totalWidth - margin.left - margin.right;\n        const chartHeight = height - margin.top - margin.bottom;\n\n        // Apply Zoom to time bins\n        const timeBins = Math.floor(100 * heatmapZoom);\n        const binWidth = chartWidth / timeBins;\n        const binDuration = totalDuration / timeBins;\n\n        // Adjust row height to fit\n        const rowHeight = Math.min(30, chartHeight / sortedRemotes.length);\n\n        // Store data for tooltip (adjusted for virtual scroll)\n        window.lastHeatmapData = { sortedRemotes, rowHeight, binWidth, remotes, timeBins, binDuration, margin, scrollLeft };\n\n        ctx.strokeStyle = '#30363d';\n        ctx.lineWidth = 1;\n\n        ctx.font = '11px -apple-system, BlinkMacSystemFont, \"Segoe UI\", Helvetica, Arial, sans-serif';\n        ctx.textAlign = 'right';\n        ctx.textBaseline = 'middle';\n\n        let maxBinCount = 0;\n        sortedRemotes.forEach(remote => {\n          const bins = new Array(timeBins).fill(0);\n          remotes[remote].forEach(evt => {\n            const binIndex = Math.min(Math.floor(evt.relTime / binDuration), timeBins - 1);\n            bins[binIndex]++;\n          });\n          maxBinCount = Math.max(maxBinCount, ...bins);\n        });\n\n        // Update Legend Labels\n        window.lastHeatmapData.maxBinCount = maxBinCount;\n        window.lastHeatmapData.maxBinCount = maxBinCount;\n\n        sortedRemotes.forEach((remote, i) => {\n          const y = margin.top + (i * rowHeight);\n\n          // Draw Label (Fixed position)\n          ctx.fillStyle = '#8b949e';\n          ctx.fillText(remote.length > 20 ? remote.slice(0, 18) + '...' : remote, margin.left - 10, y + rowHeight / 2);\n\n          // Draw Line\n          ctx.beginPath();\n          ctx.moveTo(margin.left, y);\n          ctx.lineTo(containerWidth - margin.right, y);\n          ctx.stroke();\n\n          const bins = new Array(timeBins).fill(0);\n          remotes[remote].forEach(evt => {\n            const binIndex = Math.min(Math.floor(evt.relTime / binDuration), timeBins - 1);\n            bins[binIndex]++;\n          });\n\n          bins.forEach((count, binIndex) => {\n            if (count === 0) return;\n\n            // Calculate virtual X\n            const virtualX = margin.left + (binIndex * binWidth);\n\n            // Apply scroll offset\n            const screenX = virtualX - scrollLeft;\n\n            // Only draw if visible\n            if (screenX + binWidth < margin.left || screenX > containerWidth - margin.right) return;\n\n            // Clamp to chart area\n            const drawX = Math.max(margin.left, screenX);\n            const drawWidth = Math.min(binWidth, (containerWidth - margin.right) - drawX);\n\n            const intensity = count / maxBinCount;\n            const hue = (1 - intensity) * 240;\n            ctx.fillStyle = `hsla(${hue}, 70%, 50%, 0.8)`;\n\n            ctx.fillRect(drawX, y + 2, drawWidth - 1, rowHeight - 4);\n          });\n        });\n\n        ctx.fillStyle = '#8b949e';\n        ctx.textAlign = 'center';\n        ctx.textBaseline = 'top';\n\n        const numTicks = 5 * Math.ceil(heatmapZoom);\n\n        for (let i = 0; i <= numTicks; i++) {\n          const virtualX = margin.left + (chartWidth * (i / numTicks));\n          const screenX = virtualX - scrollLeft;\n\n          if (screenX < margin.left || screenX > containerWidth - margin.right) continue;\n\n          const time = (totalDuration * (i / numTicks)).toFixed(1) + 's';\n          ctx.fillText(time, screenX, margin.top - 20);\n\n          ctx.beginPath();\n          ctx.moveTo(screenX, margin.top);\n          ctx.lineTo(screenX, height - margin.bottom);\n          ctx.stroke();\n        }\n      }\n\n      // Resize observer for heatmap\n      new ResizeObserver(() => {\n        if (currentView === 'heatmap' && heatmapPanel.classList.contains('visible')) {\n          renderHeatmap();\n        }\n      }).observe(heatmapPanel);\n\n      // Window resize handler for timeline\n      window.addEventListener('resize', () => {\n        if (currentView === 'timeline') {\n          renderVirtualRows(true);\n          renderRuler();\n        }\n      });\n\n      // Virtual Scroll Config\n      const ROW_HEIGHT = 29; // 28px + 1px border\n      const BUFFER_SIZE = 5;\n\n      function formatTime(seconds) {\n        if (seconds < 1) return (seconds * 1000).toFixed(1) + 'ms';\n        return seconds.toFixed(2) + 's';\n      }\n\n      function formatAbsTime(timestamp) {\n        const date = new Date(timestamp * 1000);\n        return date.toLocaleTimeString();\n      }\n\n      function getIconUrl(className) {\n        return `https://robloxapi.github.io/ref/icons/dark/${className}.png`;\n      }\n\n      function escapeHtml(text) {\n        if (!text) return '';\n        return text\n          .replace(/&/g, \"&amp;\")\n          .replace(/</g, \"&lt;\")\n          .replace(/>/g, \"&gt;\")\n          .replace(/\"/g, \"&quot;\")\n          .replace(/'/g, \"&#039;\");\n      }\n\n      function syntaxHighlight(text) {\n        if (!text) return '';\n\n        text = escapeHtml(text);\n        return text\n          .replace(/&quot;((?:[^&]|&(?!(quot;)))*)&quot;/g, '<span class=\"hl-str\">\"$1\"</span>')\n          .replace(/\\b(\\d+(\\.\\d+)?)\\b/g, '<span class=\"hl-num\">$1</span>')\n          .replace(/\\b(true|false)\\b/g, '<span class=\"hl-bool\">$1</span>')\n          .replace(/\\b(nil)\\b/g, '<span class=\"hl-nil\">$1</span>');\n      }\n\n      // Toast Logic\n      function showToast(message) {\n        const toast = document.getElementById('toast');\n        const msgSpan = document.getElementById('toastMessage');\n        msgSpan.innerText = message;\n        toast.classList.add('visible');\n        setTimeout(() => {\n          toast.classList.remove('visible');\n        }, 2000);\n      }\n\n      function copyText(text, message = \"Copied to clipboard\") {\n        navigator.clipboard.writeText(text).then(() => {\n          showToast(message);\n        });\n      }\n\n      function copyArgs(btn) {\n        if (selectedEvent) {\n          navigator.clipboard.writeText(selectedEvent.args).then(() => {\n            btn.classList.add('copied');\n            setTimeout(() => btn.classList.remove('copied'), 2000);\n          });\n        }\n      }\n\n      function toggleCallerDropdown(e) {\n        e.stopPropagation();\n        const menu = document.getElementById('callerDropdown');\n        if (menu) {\n          menu.classList.toggle('visible');\n        }\n      }\n\n      function copyCallerData(type) {\n        if (!selectedEvent) return;\n        let text = \"\";\n        let msg = \"Copied to clipboard\";\n        switch (type) {\n          case 'hash':\n            text = selectedEvent.funcHash || \"N/A\";\n            msg = \"Function Hash copied\";\n            break;\n          case 'upvalues':\n            text = selectedEvent.upvalues || \"{}\";\n            msg = \"Upvalues copied\";\n            break;\n          case 'protos':\n            text = selectedEvent.protos || \"[]\";\n            msg = \"Protos copied\";\n            break;\n          case 'path':\n            text = selectedEvent.origin || \"N/A\";\n            msg = \"Script Path copied\";\n            break;\n          case 'source':\n            text = selectedEvent.funcSource || \"N/A\";\n            msg = \"Source copied\";\n            break;\n        }\n        copyText(text, msg);\n        document.getElementById('callerDropdown').classList.remove('visible');\n      }\n\n      // Render Ruler\n      function renderRuler() {\n        rulerContainer.innerHTML = '';\n        const tickCount = Math.max(5, Math.floor(5 * zoomLevel));\n        for (let i = 0; i <= tickCount; i++) {\n          const pct = (i / tickCount) * 100;\n          const time = (totalDuration * (i / tickCount));\n          const tick = document.createElement('div');\n          tick.className = 'tick';\n          tick.style.left = pct + '%';\n          tick.innerText = formatTime(time);\n          rulerContainer.appendChild(tick);\n        }\n      }\n\n      // Scroll Sync\n      rowsContainer.addEventListener('scroll', () => {\n        timelineHeader.scrollLeft = rowsContainer.scrollLeft;\n      });\n\n      // Virtual Rendering\n      function renderVirtualRows(force = false) {\n        const scrollTop = rowsContainer.scrollTop;\n        const containerHeight = rowsContainer.clientHeight;\n\n        const totalHeight = filteredEvents.length * ROW_HEIGHT;\n        virtualSpacer.style.height = totalHeight + 'px';\n\n        const startIndex = Math.floor(scrollTop / ROW_HEIGHT);\n        const endIndex = Math.min(filteredEvents.length, Math.ceil((scrollTop + containerHeight) / ROW_HEIGHT) + BUFFER_SIZE);\n\n        if (!force && startIndex === lastStartIndex && endIndex === lastEndIndex) {\n          return;\n        }\n\n        lastStartIndex = startIndex;\n        lastEndIndex = endIndex;\n\n        const visibleEvents = filteredEvents.slice(Math.max(0, startIndex - BUFFER_SIZE), endIndex);\n        const startOffset = Math.max(0, startIndex - BUFFER_SIZE) * ROW_HEIGHT;\n\n        virtualContent.style.transform = `translateY(${startOffset}px)`;\n\n        const fragment = document.createDocumentFragment();\n        const zoomWidth = (100 * zoomLevel) + '%';\n\n        // Sync Ruler Width\n        document.getElementById('ruler').style.width = zoomWidth;\n\n        visibleEvents.forEach((evt) => {\n          const row = document.createElement('div');\n          row.className = 'trace-row';\n          if (selectedEvent === evt) row.classList.add('selected');\n\n          row.evtData = evt;\n          row.onclick = function () { selectRow(this, evt); };\n\n          const listCol = document.createElement('div');\n          listCol.className = 'row-list';\n          listCol.innerHTML = `\n                    <div class=\"type-icon\" style=\"background-image: url('${getIconUrl(evt.className)}')\"></div>\n                    <div class=\"remote-name\" title=\"${evt.name}\">${evt.name}</div>\n                `;\n\n          const timelineCol = document.createElement('div');\n          timelineCol.className = 'row-timeline';\n          timelineCol.style.width = zoomWidth;\n          timelineCol.style.flex = 'none';\n\n          const marker = document.createElement('div');\n          marker.className = `timeline-marker ${evt.typeClass}`;\n\n          let leftPct = ((evt.relTime) / totalDuration) * 100;\n          if (leftPct > 99) leftPct = 99;\n\n          let widthPct = (0.05 / totalDuration) * 100;\n          if (widthPct < 1) widthPct = 1;\n\n          marker.style.left = leftPct + '%';\n          marker.style.width = widthPct + '%';\n\n          timelineCol.appendChild(marker);\n          row.appendChild(listCol);\n          row.appendChild(timelineCol);\n          fragment.appendChild(row);\n        });\n\n        virtualContent.innerHTML = '';\n        virtualContent.appendChild(fragment);\n      }\n\n      // Ctrl+F Handler\n      document.addEventListener('keydown', function (e) {\n        if ((e.ctrlKey || e.metaKey) && e.key === 'f') {\n          e.preventDefault();\n          const filterInput = document.getElementById('filterInput');\n          filterInput.focus();\n          filterInput.select();\n        }\n      });\n\n      // Initial Render\n      renderVirtualRows();\n      renderRuler();\n\n      function selectRow(el, evt) {\n        const prev = virtualContent.querySelector('.trace-row.selected');\n        if (prev) prev.classList.remove('selected');\n\n        el.classList.add('selected');\n        selectedEvent = evt;\n\n        detailsPanel.classList.add('visible');\n\n        const isIncoming = evt.typeClass === 'incoming';\n        const badgeClass = isIncoming ? 'incoming' : 'outgoing';\n\n        // Flags with Unified Style\n        let flagsHtml = '';\n        if (evt.isExecutor) {\n          flagsHtml += `<div class=\"badge-pill executor\">Executor</div>`;\n        }\n        if (evt.isActor) {\n          flagsHtml += `<div class=\"badge-pill actor\">Actor</div>`;\n        }\n        if (!flagsHtml) flagsHtml = '<span style=\"color:var(--text-secondary); font-size:11px;\">None</span>';\n\n        const highlightedArgs = syntaxHighlight(evt.args);\n\n        // Icons\n        const copyIcon = `<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-copy icon-copy\"><rect width=\"14\" height=\"14\" x=\"8\" y=\"8\" rx=\"2\" ry=\"2\"/><path d=\"M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2\"/></svg>`;\n        const checkIcon = `<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-check icon-check\"><path d=\"M20 6 9 17l-5-5\"/></svg>`;\n        const parenthesesIcon = `<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-parentheses\"><path d=\"M8 21s-4-3-4-9 4-9 4-9\"/><path d=\"M16 3s4 3 4 9-4 9-4 9\"/></svg>`;\n\n        // Dropdown Icons\n        const hashIcon = `<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-hash\"><line x1=\"4\" x2=\"20\" y1=\"9\" y2=\"9\"/><line x1=\"4\" x2=\"20\" y1=\"15\" y2=\"15\"/><line x1=\"10\" x2=\"8\" y1=\"3\" y2=\"21\"/><line x1=\"16\" x2=\"14\" y1=\"3\" y2=\"21\"/></svg>`;\n        const upvaluesIcon = `<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-a-arrow-up\"><path d=\"m14 11 4-4 4 4\"/><path d=\"M18 16V7\"/><path d=\"m2 16 4.039-9.69a.5.5 0 0 1 .923 0L11 16\"/><path d=\"M3.304 13h6.392\"/></svg>`;\n        const protosIcon = `<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-square-function\"><rect width=\"18\" height=\"18\" x=\"3\" y=\"3\" rx=\"2\" ry=\"2\"/><path d=\"M9 17c2 0 2.8-1 2.8-2.8V10c0-2 1-3.3 3.2-3\"/><path d=\"M9 11.2h5.7\"/></svg>`;\n        const pathIcon = `<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-route\"><circle cx=\"6\" cy=\"19\" r=\"3\"/><path d=\"M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15\"/><circle cx=\"18\" cy=\"5\" r=\"3\"/></svg>`;\n        const sourceIcon = `<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-code\"><path d=\"m16 18 6-6-6-6\"/><path d=\"m8 6-6 6 6 6\"/></svg>`;\n        const boxIcon = `<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-box\"><path d=\"M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z\"/><path d=\"m3.3 7 8.7 5 8.7-5\"/><path d=\"M12 22v-9\"/></svg>`;\n\n        detailsContent.innerHTML = `\n                <div class=\"details-header-top\">\n                    <div class=\"details-title-group\">\n                        <div class=\"details-icon-large\" style=\"background-image: url('${getIconUrl(evt.className)}')\"></div>\n                        <div class=\"details-name-large\">${escapeHtml(evt.name)}</div>\n                    </div>\n                    <div class=\"details-actions\">\n                        <div class=\"badge-pill ${badgeClass}\">${evt.typeClass.toUpperCase()}</div>\n                        <div class=\"close-btn\" onclick=\"closeDetails()\">\195\151</div>\n                    </div>\n                </div>\n\n                <div class=\"details-path-row\" onclick=\"copyText('${escapeHtml(evt.path).replace(/'/g, \"\\\\'\").replace(/\"/g, \"&quot;\")}', 'Remote Path copied')\" title=\"Click to copy path\"><span class=\"clickable-path\">${escapeHtml(evt.path)}</span></div>\n\n                <div class=\"info-grid\">\n                    <div class=\"info-item\">\n                        <h4>Method</h4>\n                        <div>${escapeHtml(evt.method)}</div>\n                    </div>\n                    <div class=\"info-item\">\n                        <h4>Timestamp</h4>\n                        <div>${formatAbsTime(evt.timestamp)} <span style=\"color:var(--text-secondary)\">(+${formatTime(evt.relTime)})</span></div>\n                    </div>\n                    <div class=\"info-item\">\n                        <h4>ClassName</h4>\n                        <div>${escapeHtml(evt.className)}</div>\n                    </div>\n                    <div class=\"info-item\">\n                        <h4>Remote Path</h4>\n                        <div class=\"remote-path-copy clickable-path\" onclick=\"copyText('${escapeHtml(evt.path).replace(/'/g, \"\\\\'\").replace(/\"/g, \"&quot;\")}', 'Remote Path copied')\" title=\"Click to copy path\">${escapeHtml(evt.path)}</div>\n                    </div>\n                </div>\n\n                <div class=\"content-box\">\n                    <div class=\"box-title\">Caller Data</div>\n                    <button class=\"copy-icon-btn\" onclick=\"toggleCallerDropdown(event)\" title=\"Copy Caller Info\">${copyIcon}</button>\n\n                    <div id=\"callerDropdown\" class=\"dropdown-menu\">\n                        <div class=\"dropdown-item\" onclick=\"copyCallerData('hash')\">${hashIcon} Function Hash</div>\n                        <div class=\"dropdown-item\" onclick=\"copyCallerData('upvalues')\">${upvaluesIcon} Upvalues</div>\n                        <div class=\"dropdown-item\" onclick=\"copyCallerData('protos')\">${protosIcon} Protos</div>\n                        <div class=\"dropdown-item\" onclick=\"copyCallerData('constants')\">${boxIcon} Constants</div>\n                        <div class=\"dropdown-item\" onclick=\"copyCallerData('path')\">${pathIcon} Script Path</div>\n                        <div class=\"dropdown-item\" onclick=\"copyCallerData('source')\">${sourceIcon} Func Source</div>\n                    </div>\n\n                    <div class=\"caller-header\">\n                        <div class=\"caller-icon\">${parenthesesIcon}</div>\n                        <div class=\"caller-info\">\n                            <div class=\"caller-name\">${escapeHtml(evt.funcName)} <span class=\"caller-source\">:${evt.funcLine}</span></div>\n                            <div class=\"caller-source\">${escapeHtml(evt.funcSource)}</div>\n                        </div>\n                    </div>\n\n                    <div class=\"info-grid-2\" style=\"margin-bottom:0; gap:10px;\">\n                         <div class=\"info-item-2\" style=\"margin-right: 100px;\">\n                            <h4>Flags</h4>\n                            <div class=\"flags-row\">${flagsHtml}</div>\n                         </div>\n                         <div class=\"info-item-2\">\n                            <h4>Origin</h4>\n                            <div class=\"origin-row clickable-path\" onclick=\"copyText('${escapeHtml(evt.origin).replace(/'/g, \"\\\\'\").replace(/\"/g, \"&quot;\")}', 'Origin copied')\" title=\"Click to copy origin\">${escapeHtml(evt.origin)}</div>\n                         </div>\n                    </div>\n                </div>\n\n                <div class=\"content-box\">\n                    <div class=\"box-title\">Arguments</div>\n                    <button class=\"copy-icon-btn\" onclick=\"copyArgs(this)\" title=\"Copy Arguments\">\n                        ${copyIcon}\n                        ${checkIcon}\n                    </button>\n                    <div class=\"args-content\">${highlightedArgs}</div>\n                </div>\n            `;\n      }\n\n      function closeDetails() {\n        detailsPanel.classList.remove('visible');\n        const prev = virtualContent.querySelector('.trace-row.selected');\n        if (prev) prev.classList.remove('selected');\n        selectedEvent = null;\n      }\n\n      function handleFilterInput() {\n        if (filterTimeout) clearTimeout(filterTimeout);\n        filterTimeout = setTimeout(applyFilters, 300);\n      }\n\n      function toggleSearchOptions() {\n        const widget = document.getElementById('searchChevron').closest('.search-widget');\n        const options = document.getElementById('searchOptions');\n        const chevron = document.getElementById('searchChevron');\n\n        options.classList.toggle('visible');\n        chevron.classList.toggle('expanded');\n        widget.classList.toggle('expanded');\n      }\n\n      function handleTimeInput() {\n        const minVal = parseFloat(document.getElementById('minTimeInput').value);\n        const maxVal = parseFloat(document.getElementById('maxTimeInput').value);\n        const unit = parseFloat(document.getElementById('timeUnitSelect').value);\n\n        filterMinTime = isNaN(minVal) ? 0 : minVal * unit;\n        filterMaxTime = isNaN(maxVal) ? totalDuration : maxVal * unit;\n\n        if (filterTimeout) clearTimeout(filterTimeout);\n        filterTimeout = setTimeout(applyFilters, 300);\n      }\n\n      function applyFilters() {\n        const query = document.getElementById('filterInput').value.toLowerCase();\n        const checkIncoming = document.getElementById('filterIncoming').checked;\n        const checkOutgoing = document.getElementById('filterOutgoing').checked;\n        const checkActor = document.getElementById('filterActor').checked;\n        const checkNonActor = document.getElementById('filterNonActor').checked;\n        const checkArgs = document.getElementById('filterArgs').checked;\n        const checkProto = document.getElementById('filterProto').checked;\n        const checkConst = document.getElementById('filterConst').checked;\n        const checkHash = document.getElementById('filterHash').checked;\n        const checkSource = document.getElementById('filterSource').checked;\n\n        filteredEvents = allEvents.filter(evt => {\n          // Filter by Type (Incoming/Outgoing)\n          if (checkIncoming || checkOutgoing) {\n            const isIncoming = evt.typeClass === 'incoming';\n            const isOutgoing = evt.typeClass === 'outgoing';\n            if (!((checkIncoming && isIncoming) || (checkOutgoing && isOutgoing))) {\n              return false;\n            }\n          }\n\n          // Filter by Actor Status\n          if (checkActor || checkNonActor) {\n            const isActor = evt.isActor;\n            const isNonActor = !evt.isActor;\n            if (!((checkActor && isActor) || (checkNonActor && isNonActor))) {\n              return false;\n            }\n          }\n\n          let matchesText = !query;\n\n          if (!matchesText) {\n            // Default search: Name and Type\n            if (evt.name.toLowerCase().includes(query) || evt.type.toLowerCase().includes(query)) {\n              matchesText = true;\n            }\n            // Advanced search options\n            else {\n              if (checkArgs && evt.args && evt.args.toLowerCase().includes(query)) matchesText = true;\n              else if (checkProto && evt.protos && evt.protos.toLowerCase().includes(query)) matchesText = true;\n              else if (checkConst && evt.constants && evt.constants.toLowerCase().includes(query)) matchesText = true;\n              else if (checkHash && evt.funcHash && evt.funcHash.toLowerCase().includes(query)) matchesText = true;\n              else if (checkSource && evt.funcSource && evt.funcSource.toLowerCase().includes(query)) matchesText = true;\n            }\n          }\n\n          const matchesTime = evt.relTime >= filterMinTime && evt.relTime <= filterMaxTime;\n\n          return matchesText && matchesTime;\n        });\n\n        // Update Stats\n        statsLabel.innerText = `${filteredEvents.length} Events \226\128\162 ${totalDuration.toFixed(2)}s`;\n\n        // Reset Scroll\n        rowsContainer.scrollTop = 0;\n        lastStartIndex = -1;\n        lastEndIndex = -1;\n\n        if (currentView === 'timeline') {\n          renderVirtualRows(true);\n        } else {\n          renderHeatmap();\n        }\n      } function updateZoom() {\n        const width = (100 * zoomLevel) + '%';\n        rulerContainer.style.width = width;\n        renderRuler();\n        lastStartIndex = -1;\n        renderVirtualRows(true);\n      }\n\n      rowsContainer.addEventListener('wheel', (e) => {\n        if (e.ctrlKey) {\n          e.preventDefault();\n          if (e.deltaY < 0) {\n            zoomLevel = Math.min(zoomLevel * 1.1, 20);\n          } else {\n            zoomLevel = Math.max(zoomLevel / 1.1, 1);\n          }\n          updateZoom();\n        }\n      });\n\n      rowsContainer.addEventListener('scroll', () => {\n        timelineHeader.scrollLeft = rowsContainer.scrollLeft;\n\n        if (!isScrolling) {\n          window.requestAnimationFrame(() => {\n            renderVirtualRows();\n            isScrolling = false;\n          });\n          isScrolling = true;\n        }\n      });\n\n      const sessionInfo = document.querySelector('.session-info');\n      const tooltip = document.querySelector('.session-tooltip');\n\n      sessionInfo.addEventListener('click', (e) => {\n        e.stopPropagation();\n        tooltip.classList.toggle('visible');\n      });\n\n      tooltip.addEventListener('click', (e) => {\n        e.stopPropagation();\n      });\n\n      document.addEventListener('click', () => {\n        tooltip.classList.remove('visible');\n        const dropdown = document.getElementById('callerDropdown');\n        if (dropdown) dropdown.classList.remove('visible');\n      });\n    </script>\n  </body>\n</html>\n"
-                                }
-                            },
                             {
                                 21,
                                 2,
@@ -10400,6 +10397,151 @@ local ObjectTree = {
                                 2,
                                 {
                                     "SessionExporter"
+                                }
+                            },
+                            {
+                                23,
+                                5,
+                                {
+                                    "SessionHTMLView",
+                                    Value = "<!DOCTYPE html>\n<html lang=\"en\">\n  <head>\n    <meta charset=\"UTF-8\" />\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />\n    <title>Nova - Session Viewer</title>\n    <link\n      rel=\"icon\"\n      type=\"image/png\"\n      href=\"https://raw.githubusercontent.com/DizzyUSER69/novaproject/main/nova_project/Assets/Logo.png\"\n    />\n    <style>\n      :root {\n        --bg-color: #0b0b0b;\n        --surface-color: #161b22;\n        --border-color: #30363d;\n        --text-primary: #c9d1d9;\n        --text-secondary: #8b949e;\n        --accent-blue: #58a6ff;\n        --accent-green: #3fb950;\n        --accent-orange: #d29922;\n        --accent-red: #ff7b72;\n        --font-family: \"Inter\", -apple-system, BlinkMacSystemFont, \"Segoe UI\",\n          Helvetica, Arial, sans-serif;\n      }\n\n      body {\n        background-color: var(--bg-color);\n        color: var(--text-primary);\n        font-family: var(--font-family);\n        margin: 0;\n        padding: 0;\n        font-size: 13px;\n        height: 100vh;\n        display: flex;\n        flex-direction: column;\n        overflow: hidden;\n      }\n\n      /* Top Header */\n      .app-header {\n        height: 50px;\n        border-bottom: 1px solid var(--border-color);\n        display: flex;\n        align-items: center;\n        justify-content: space-between;\n        padding: 0 20px;\n        background-color: var(--bg-color);\n        flex-shrink: 0;\n        z-index: 10;\n      }\n\n      .brand {\n        display: flex;\n        align-items: center;\n        gap: 10px;\n        font-size: 16px;\n        font-weight: 600;\n        color: #fff;\n      }\n\n      .brand-icon {\n        width: 20px;\n        height: 20px;\n        background-image: url(\"https://raw.githubusercontent.com/DizzyUSER69/novaproject/main/nova_project/Assets/Logo.png\");\n        background-size: contain;\n        background-repeat: no-repeat;\n        background-position: center;\n      }\n\n      .session-container {\n        position: relative;\n        display: flex;\n        flex-direction: column;\n        align-items: flex-end;\n      }\n\n      .session-info {\n        color: var(--text-secondary);\n        font-family: monospace;\n        font-size: 12px;\n        cursor: pointer;\n        padding: 2px 5px;\n        border-radius: 4px;\n        transition: background-color 0.2s ease;\n        user-select: none;\n      }\n\n      .session-info:hover {\n        background-color: #1c2128;\n      }\n\n      .session-id {\n        color: #fff;\n      }\n\n      .session-tooltip {\n        position: absolute;\n        top: 100%;\n        right: 0;\n        background-color: #1c2128;\n        border: 1px solid var(--border-color);\n        border-radius: 6px;\n        padding: 10px;\n        z-index: 100;\n        width: 250px;\n        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);\n        margin-top: 5px;\n        opacity: 0;\n        transform: translateY(-10px);\n        pointer-events: none;\n        visibility: hidden;\n        transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s;\n      }\n\n      .session-tooltip::before {\n        content: \"\";\n        position: absolute;\n        top: -10px;\n        left: 0;\n        width: 100%;\n        height: 10px;\n        background: transparent;\n      }\n\n      .session-container:hover .session-tooltip,\n      .session-tooltip.visible {\n        opacity: 1;\n        transform: translateY(0);\n        pointer-events: auto;\n        visibility: visible;\n      }\n\n      .tooltip-row {\n        display: flex;\n        justify-content: space-between;\n        margin-bottom: 5px;\n        font-size: 11px;\n      }\n\n      .tooltip-label {\n        color: var(--text-secondary);\n      }\n\n      .tooltip-value {\n        color: var(--text-primary);\n        font-family: monospace;\n        user-select: text;\n      }\n\n      /* Mobile Responsiveness */\n      @media (max-width: 768px) {\n        .app-header {\n          height: auto;\n          flex-wrap: wrap;\n          padding: 10px;\n          gap: 10px;\n        }\n\n        .brand {\n          font-size: 14px;\n        }\n\n        .session-container {\n          align-items: flex-start;\n          display: none;\n          /* Hide session info on mobile to save space */\n        }\n\n        .trace-toolbar {\n          height: auto;\n          flex-wrap: wrap;\n          padding: 10px;\n          gap: 10px;\n          justify-content: space-between;\n        }\n\n        /* Hide non-essential info on mobile */\n        .trace-toolbar > div:first-child,\n        #statsLabel {\n          display: none;\n        }\n\n        .search-widget {\n          width: 100%;\n          order: 3;\n          margin-top: 5px;\n        }\n\n        .view-toggle {\n          width: 100%;\n          display: flex;\n        }\n\n        .view-btn {\n          flex: 1;\n          text-align: center;\n        }\n\n        .row-list {\n          width: 60vw;\n          /* Use viewport width to prevent runaway expansion */\n        }\n\n        .col-list {\n          width: 60vw;\n          flex: none;\n        }\n\n        .details-panel.visible {\n          position: fixed;\n          top: 0;\n          left: 0;\n          width: 100%;\n          height: 100%;\n          z-index: 1000;\n          border-left: none;\n        }\n\n        .details-header-top {\n          margin-top: 10px;\n        }\n\n        /* Fix Details Header Overflow */\n        .details-title-group {\n          min-width: 0;\n          flex: 1;\n          margin-right: 10px;\n        }\n\n        .details-name-large {\n          white-space: nowrap;\n          overflow: hidden;\n          text-overflow: ellipsis;\n        }\n\n        .details-actions {\n          flex-shrink: 0;\n        }\n\n        /* Allow wrapping for paths on mobile */\n        .details-path-row,\n        .origin-row,\n        .remote-path-copy {\n          white-space: normal !important;\n          word-break: break-all;\n        }\n      }\n\n      /* Scrollbars */\n      ::-webkit-scrollbar {\n        width: 10px;\n        height: 10px;\n      }\n\n      ::-webkit-scrollbar-track {\n        background: #0d1117;\n      }\n\n      ::-webkit-scrollbar-thumb {\n        background: #30363d;\n        border-radius: 5px;\n        border: 2px solid #0d1117;\n      }\n\n      ::-webkit-scrollbar-thumb:hover {\n        background: #8b949e;\n      }\n\n      ::-webkit-scrollbar-corner {\n        background: var(--bg-color);\n      }\n\n      /* Heatmap Styles */\n      .heatmap-container {\n        flex: 1;\n        display: none;\n        flex-direction: column;\n        overflow: hidden;\n        background-color: var(--bg-color);\n        position: relative;\n      }\n\n      .heatmap-container.visible {\n        display: flex;\n      }\n\n      .heatmap-canvas {\n        flex: 1;\n        width: 100%;\n        height: 100%;\n      }\n\n      .view-toggle {\n        display: flex;\n        background: #1c2128;\n        border: 1px solid var(--border-color);\n        border-radius: 4px;\n        overflow: hidden;\n      }\n\n      .view-btn {\n        padding: 4px 12px;\n        font-size: 12px;\n        cursor: pointer;\n        color: var(--text-secondary);\n        background: transparent;\n        border: none;\n        transition: all 0.2s;\n      }\n\n      .view-btn.active {\n        background: var(--accent-blue);\n        color: white;\n      }\n\n      .view-btn:hover:not(.active) {\n        background: #30363d;\n      }\n\n      /* Main Layout */\n      .main-container {\n        display: flex;\n        flex: 1;\n        overflow: hidden;\n      }\n\n      /* Left Panel: Trace View */\n      .trace-panel {\n        flex: 1;\n        display: flex;\n        flex-direction: column;\n        border-right: 1px solid var(--border-color);\n        min-width: 0;\n        overflow: hidden;\n      }\n\n      .trace-toolbar {\n        height: 40px;\n        border-bottom: 1px solid var(--border-color);\n        display: flex;\n        align-items: center;\n        padding: 0 10px;\n        gap: 10px;\n        background-color: var(--bg-color);\n        flex-shrink: 0;\n      }\n\n      .search-widget {\n        display: flex;\n        flex-direction: column;\n        background-color: var(--bg-color);\n        border: 1px solid var(--border-color);\n        border-radius: 6px;\n        width: 320px;\n        position: relative;\n        transition: border-color 0.2s ease, border-radius 0.2s ease;\n        box-sizing: border-box;\n      }\n\n      .search-widget:focus-within {\n        border-color: var(--accent-blue);\n      }\n\n      .search-widget:focus-within > .search-options {\n        border-color: var(--accent-blue);\n      }\n\n      .search-widget.expanded {\n        border-bottom-left-radius: 0;\n        border-bottom-right-radius: 0;\n        border-bottom-color: transparent;\n      }\n\n      .search-row {\n        display: flex;\n        align-items: center;\n        padding: 4px;\n      }\n\n      .search-chevron {\n        cursor: pointer;\n        padding: 2px;\n        color: var(--text-secondary);\n        display: flex;\n        align-items: center;\n        justify-content: center;\n        transition: transform 0.2s ease, color 0.2s ease;\n        width: 20px;\n        height: 20px;\n        border-radius: 4px;\n      }\n\n      .search-chevron:hover {\n        background-color: rgba(255, 255, 255, 0.1);\n        color: var(--text-primary);\n      }\n\n      .search-chevron.expanded {\n        transform: rotate(90deg);\n      }\n\n      .search-input-container {\n        flex: 1;\n        display: flex;\n        align-items: center;\n        margin-left: 4px;\n      }\n\n      .search-input {\n        background: transparent;\n        border: none;\n        color: var(--text-primary);\n        font-size: 12px;\n        width: 100%;\n        outline: none;\n        height: 20px;\n      }\n\n      .search-options {\n        transition: border-color 0.2s ease, border-radius 0.2s ease;\n        display: none;\n        padding: 10px;\n        border: 1px solid var(--border-color);\n        border-top: none;\n        background-color: var(--bg-color);\n        flex-direction: column;\n        gap: 12px;\n        position: absolute;\n        top: 100%;\n        left: -1px;\n        right: -1px;\n        z-index: 100;\n        border-bottom-left-radius: 6px;\n        border-bottom-right-radius: 6px;\n        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);\n        box-sizing: border-box;\n      }\n\n      .search-options.visible {\n        display: flex;\n      }\n\n      .time-range-row {\n        display: flex;\n        align-items: center;\n        gap: 8px;\n        font-size: 11px;\n        color: var(--text-secondary);\n      }\n\n      .filter-options-row {\n        display: flex;\n        flex-wrap: wrap;\n        gap: 8px;\n        padding-top: 8px;\n        border-top: 1px solid var(--border-color);\n      }\n\n      .filter-checkbox-label {\n        display: flex;\n        align-items: center;\n        gap: 4px;\n        font-size: 11px;\n        color: var(--text-secondary);\n        cursor: pointer;\n        user-select: none;\n      }\n\n      .filter-checkbox-label:hover {\n        color: var(--text-primary);\n      }\n\n      .filter-checkbox {\n        accent-color: var(--accent-blue);\n      }\n\n      .time-input-styled {\n        background-color: #161b22;\n        border: 1px solid var(--border-color);\n        color: var(--text-primary);\n        border-radius: 4px;\n        padding: 4px 8px;\n        width: 60px;\n        outline: none;\n        font-size: 11px;\n        transition: border-color 0.2s ease;\n        margin: 0 2px;\n      }\n\n      .time-input-styled:focus {\n        border-color: var(--accent-blue);\n      }\n\n      .unit-select {\n        background-color: #161b22;\n        border: 1px solid var(--border-color);\n        color: var(--text-primary);\n        border-radius: 4px;\n        outline: none;\n        font-size: 11px;\n        padding: 3px 6px;\n        cursor: pointer;\n        transition: border-color 0.2s ease;\n      }\n\n      .unit-select:focus {\n        border-color: var(--accent-blue);\n      }\n\n      .trace-header-row {\n        display: flex;\n        height: 30px;\n        border-bottom: 1px solid var(--border-color);\n        background-color: var(--surface-color);\n        font-size: 11px;\n        color: var(--text-secondary);\n        line-height: 30px;\n        flex-shrink: 0;\n      }\n\n      .col-list {\n        width: 300px;\n        padding-left: 15px;\n        border-right: 1px solid var(--border-color);\n        flex-shrink: 0;\n        z-index: 5;\n        background-color: var(--surface-color);\n        box-sizing: border-box;\n        /* Match row-list */\n      }\n\n      .col-timeline {\n        flex: 1;\n        position: relative;\n        overflow: hidden;\n        min-width: calc(100vw - 300px);\n      }\n\n      .timeline-ruler {\n        position: relative;\n        top: 0;\n        left: 0;\n        height: 100%;\n        pointer-events: none;\n      }\n\n      .tick {\n        position: absolute;\n        top: 0;\n        bottom: 0;\n        border-left: 1px solid #30363d;\n        font-size: 10px;\n        color: #484f58;\n        padding-left: 4px;\n      }\n\n      .trace-rows {\n        flex: 1;\n        overflow: auto;\n        /* Ensure both scrollbars appear */\n        position: relative;\n        contain: strict;\n      }\n\n      .virtual-spacer {\n        position: absolute;\n        top: 0;\n        left: 0;\n        width: 1px;\n      }\n\n      .virtual-content {\n        position: absolute;\n        top: 0;\n        left: 0;\n        width: 100%;\n      }\n\n      .trace-row {\n        display: flex;\n        height: 28px;\n        /* align-items: center;  Removed to allow children to stretch */\n        cursor: pointer;\n        /* border-bottom: 1px solid #1c2128; Moved to children */\n        width: fit-content;\n        min-width: 100%;\n        transition: background-color 0.1s ease;\n        box-sizing: border-box;\n      }\n\n      .trace-row:hover {\n        background-color: #1c2128;\n      }\n\n      .trace-row.selected {\n        background-color: rgba(88, 166, 255, 0.1);\n      }\n\n      .trace-row.hidden {\n        display: none;\n      }\n\n      .trace-row:hover * {\n        background-color: #1c2128;\n      }\n\n      .trace-row.selected * {\n        background-color: #1c2333;\n      }\n\n      .row-list {\n        width: 300px;\n        padding-left: 15px;\n        /* Use box-shadow for sticky border to prevent it from disappearing */\n        box-shadow: 1px 0 0 0 var(--border-color);\n        border-right: none;\n        border-bottom: 1px solid #1c2128;\n        /* Added border here */\n        display: flex;\n        align-items: center;\n        overflow: hidden;\n        flex-shrink: 0;\n        box-sizing: border-box;\n        position: sticky;\n        left: 0;\n        background-color: var(--bg-color);\n        z-index: 2;\n        transition: background-color 0.1s ease;\n        height: 100%;\n      }\n\n      .row-timeline {\n        flex: 1;\n        position: relative;\n        height: 100%;\n        overflow: hidden;\n        border-bottom: 1px solid #1c2128;\n        /* Added border here */\n        box-sizing: border-box;\n        /* Ensure border is inside height */\n      }\n\n      .type-icon {\n        width: 16px;\n        height: 16px;\n        margin-right: 8px;\n        flex-shrink: 0;\n        background-size: contain;\n        background-repeat: no-repeat;\n        background-position: center;\n      }\n\n      .remote-name {\n        white-space: nowrap;\n        overflow: hidden;\n        text-overflow: ellipsis;\n        color: var(--text-primary);\n        font-size: 12px;\n      }\n\n      .timeline-marker {\n        position: absolute;\n        top: 10px;\n        height: 8px;\n        min-width: 4px;\n        border-radius: 4px;\n        opacity: 0.9;\n      }\n\n      .timeline-marker.incoming {\n        background: linear-gradient(90deg, var(--accent-green), #2ea043);\n      }\n\n      .timeline-marker.outgoing {\n        background: linear-gradient(90deg, var(--accent-orange), #b08800);\n      }\n\n      /* Right Panel: Details */\n      .details-panel {\n        width: 0;\n        opacity: 0;\n        background-color: var(--bg-color);\n        border-left: 0 solid var(--border-color);\n        display: flex;\n        flex-direction: column;\n        padding: 0;\n        box-sizing: border-box;\n        overflow-y: auto;\n        overflow-x: hidden;\n        position: relative;\n        flex-shrink: 0;\n        transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease,\n          padding 0.3s ease;\n      }\n\n      .details-panel.visible {\n        width: 450px;\n        opacity: 1;\n        padding: 20px;\n        border-left: 1px solid var(--border-color);\n      }\n\n      /* Header */\n      .details-header-top {\n        display: flex;\n        align-items: center;\n        justify-content: space-between;\n        margin-bottom: 10px;\n      }\n\n      .details-title-group {\n        display: flex;\n        align-items: center;\n        gap: 10px;\n      }\n\n      .details-icon-large {\n        width: 32px;\n        height: 32px;\n        background-size: contain;\n        background-repeat: no-repeat;\n        background-position: center;\n      }\n\n      .details-name-large {\n        font-size: 20px;\n        font-weight: 600;\n        color: #fff;\n      }\n\n      .details-actions {\n        display: flex;\n        align-items: center;\n        gap: 10px;\n      }\n\n      .close-btn {\n        cursor: pointer;\n        color: var(--text-secondary);\n        font-size: 20px;\n        transition: color 0.2s ease;\n        line-height: 1;\n      }\n\n      .close-btn:hover {\n        color: #fff;\n      }\n\n      /* Unified Badge Style */\n      .badge-pill {\n        padding: 4px 12px;\n        border-radius: 20px;\n        font-size: 11px;\n        font-weight: 600;\n        text-transform: uppercase;\n        border: 1px solid;\n        letter-spacing: 0.5px;\n        white-space: nowrap;\n      }\n\n      .badge-pill.incoming {\n        color: var(--accent-green);\n        border-color: var(--accent-green);\n      }\n\n      .badge-pill.outgoing {\n        color: var(--accent-orange);\n        border-color: var(--accent-orange);\n      }\n\n      .badge-pill.executor {\n        color: var(--accent-green);\n        border-color: var(--accent-green);\n      }\n\n      .badge-pill.actor {\n        color: var(--accent-red);\n        border-color: var(--accent-red);\n        background: repeating-linear-gradient(\n          45deg,\n          transparent,\n          transparent 2px,\n          rgba(255, 123, 114, 0.1) 2px,\n          rgba(255, 123, 114, 0.1) 4px\n        );\n      }\n\n      .details-path-row {\n        color: var(--text-secondary);\n        font-size: 12px;\n        margin-bottom: 20px;\n        font-family: monospace;\n        white-space: nowrap;\n        text-overflow: ellipsis;\n        overflow: hidden;\n        height: 1.2em;\n      }\n\n      .remote-path-copy {\n        cursor: pointer;\n        color: var(--text-secondary);\n        font-size: 12px;\n        font-weight: normal;\n        transition: color 0.2s ease;\n        white-space: nowrap;\n        overflow: hidden;\n        text-overflow: ellipsis;\n        display: block;\n        width: 25%;\n      }\n\n      .remote-path-copy:hover {\n        color: var(--accent-blue);\n      }\n\n      /* Info Grid 2 */\n      .info-grid-2 {\n        display: flex;\n        gap: 20px;\n        margin-bottom: 25px;\n      }\n\n      .info-item-2 h4 {\n        margin: 0 0 6px 0;\n        color: var(--text-secondary);\n        font-size: 12px;\n        font-weight: normal;\n      }\n\n      .info-item-2 div {\n        font-size: 11px;\n        color: var(--text-primary);\n        font-family: monospace;\n      }\n\n      /* Info Grid */\n      .info-grid {\n        display: grid;\n        grid-template-columns: 1fr 1fr;\n        gap: 20px;\n        margin-bottom: 25px;\n      }\n\n      .info-item h4 {\n        margin: 0 0 6px 0;\n        color: var(--text-secondary);\n        font-size: 12px;\n        font-weight: normal;\n      }\n\n      .info-item div {\n        font-size: 14px;\n        color: var(--text-primary);\n        font-family: monospace;\n      }\n\n      .clickable-path {\n        border-bottom: 1px dashed var(--text-secondary);\n        cursor: pointer;\n        transition: color 0.2s, border-color 0.2s;\n      }\n\n      .clickable-path:hover {\n        color: var(--accent-blue);\n        border-color: var(--accent-blue);\n      }\n\n      /* Content Boxes */\n      .content-box {\n        border: 1px solid var(--border-color);\n        border-radius: 8px;\n        padding: 15px;\n        margin-bottom: 20px;\n        position: relative;\n        background-color: rgba(22, 27, 34, 0.5);\n      }\n\n      .box-title {\n        position: absolute;\n        top: -10px;\n        left: 10px;\n        background-color: var(--bg-color);\n        padding: 0 5px;\n        font-size: 11px;\n        color: var(--text-secondary);\n      }\n\n      .caller-header {\n        display: flex;\n        align-items: center;\n        gap: 10px;\n        margin-bottom: 15px;\n      }\n\n      .caller-icon {\n        color: var(--text-secondary);\n        display: flex;\n        align-items: center;\n        justify-content: center;\n      }\n\n      .caller-icon svg {\n        width: 24px;\n        height: 24px;\n      }\n\n      .caller-info {\n        flex: 1;\n        min-width: 0;\n        /* Critical for flex child truncation */\n      }\n\n      .caller-name {\n        color: var(--accent-blue);\n        font-family: monospace;\n        font-size: 14px;\n        margin-bottom: 2px;\n      }\n\n      .caller-source {\n        color: var(--text-secondary);\n        font-size: 11px;\n        font-family: monospace;\n        height: 1.2em;\n        white-space: nowrap;\n        overflow: hidden;\n        text-overflow: ellipsis;\n        display: block;\n      }\n\n      .flags-row {\n        display: flex;\n        gap: 10px;\n        margin-bottom: 10px;\n        align-items: center;\n      }\n\n      .origin-row {\n        font-size: 12px;\n        color: var(--text-primary);\n        font-family: monospace;\n        display: block;\n        white-space: nowrap;\n        height: 1.2em;\n        overflow: hidden;\n        text-overflow: ellipsis;\n        width: 35%;\n      }\n\n      /* Arguments */\n      .args-content {\n        font-family: \"Consolas\", \"Monaco\", monospace;\n        font-size: 12px;\n        white-space: pre-wrap;\n        overflow-x: auto;\n        color: #e0e0e0;\n        max-height: 300px;\n        overflow-y: auto;\n        line-height: 1.5;\n      }\n\n      /* Copy Button with Animation */\n      .copy-icon-btn {\n        position: absolute;\n        top: 10px;\n        right: 10px;\n        background: transparent;\n        border: 1px solid var(--border-color);\n        border-radius: 4px;\n        color: var(--text-secondary);\n        cursor: pointer;\n        width: 28px;\n        height: 28px;\n        display: flex;\n        align-items: center;\n        justify-content: center;\n        transition: all 0.2s;\n        overflow: hidden;\n        /* Ensure check icon doesn't spill out */\n      }\n\n      .copy-icon-btn:hover {\n        border-color: var(--text-primary);\n        color: var(--text-primary);\n        background-color: var(--surface-color);\n      }\n\n      .copy-icon-btn svg {\n        width: 14px;\n        height: 14px;\n        position: absolute;\n        top: 50%;\n        left: 50%;\n        transform: translate(-50%, -50%) scale(1);\n        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);\n      }\n\n      .copy-icon-btn .icon-check {\n        transform: translate(-50%, -50%) scale(0);\n        color: var(--accent-green);\n      }\n\n      .copy-icon-btn.copied .icon-copy {\n        transform: translate(-50%, -50%) scale(0);\n      }\n\n      .copy-icon-btn.copied .icon-check {\n        transform: translate(-50%, -50%) scale(1);\n      }\n\n      /* Dropdown */\n      .dropdown-menu {\n        position: absolute;\n        top: 42px;\n        /* Button height + spacing */\n        right: 10px;\n        background-color: #1c2128;\n        border: 1px solid var(--border-color);\n        border-radius: 6px;\n        width: 160px;\n        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);\n        z-index: 50;\n        display: none;\n        overflow: hidden;\n      }\n\n      .dropdown-menu.visible {\n        display: block;\n      }\n\n      .dropdown-item {\n        padding: 8px 12px;\n        font-size: 12px;\n        color: var(--text-primary);\n        cursor: pointer;\n        transition: background-color 0.2s;\n        display: flex;\n        align-items: center;\n        gap: 8px;\n      }\n\n      .dropdown-item:hover {\n        background-color: var(--accent-blue);\n        color: #fff;\n      }\n\n      .dropdown-item svg {\n        width: 14px;\n        height: 14px;\n        opacity: 0.7;\n      }\n\n      /* Toast Notification */\n      .toast-container {\n        position: fixed;\n        bottom: 30px;\n        left: 50%;\n        transform: translateX(-50%) translateY(20px);\n        background-color: #1c2128;\n        border: 1px solid var(--border-color);\n        border-radius: 6px;\n        padding: 8px 16px;\n        color: #fff;\n        font-size: 12px;\n        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);\n        opacity: 0;\n        transition: opacity 0.3s, transform 0.3s;\n        pointer-events: none;\n        z-index: 1000;\n        display: flex;\n        align-items: center;\n        gap: 8px;\n      }\n\n      .toast-container.visible {\n        opacity: 1;\n        transform: translateX(-50%) translateY(0);\n      }\n\n      .toast-container svg {\n        width: 16px;\n        height: 16px;\n        color: var(--accent-green);\n      }\n\n      /* Syntax Highlighting */\n      .hl-str {\n        color: #a5d6ff;\n      }\n\n      .hl-num {\n        color: #79c0ff;\n      }\n\n      .hl-bool {\n        color: #ff7b72;\n      }\n\n      .hl-key {\n        color: #7ee787;\n      }\n\n      .hl-nil {\n        color: #ff7b72;\n      }\n\n      .footer {\n        height: 25px;\n        border-top: 1px solid var(--border-color);\n        display: flex;\n        align-items: center;\n        justify-content: space-between;\n        padding: 0 20px;\n        background-color: var(--bg-color);\n        color: var(--text-secondary);\n        font-size: 11px;\n        flex-shrink: 0;\n      }\n    </style>\n  </head>\n\n  <body>\n    <div class=\"app-header\">\n      <a\n        href=\"https://github.com/DizzyUSER69/novaproject/tree/main\"\n        target=\"_blank\"\n        style=\"text-decoration: none\"\n      >\n        <div class=\"brand\">\n          <div class=\"brand-icon\"></div>\n          Nova - Session Viewer\n        </div>\n      </a>\n      <div class=\"session-container\">\n        <div class=\"session-info\">\n          Session / <span class=\"session-id\">{{SESSION_ID}}</span>\n        </div>\n        <div class=\"session-tooltip\">\n          <div class=\"tooltip-row\">\n            <span class=\"tooltip-label\">Start Time (tick)</span>\n            <span class=\"tooltip-value\">{{START_TIME}}</span>\n          </div>\n          <div class=\"tooltip-row\">\n            <span class=\"tooltip-label\">Place ID</span>\n            <span class=\"tooltip-value\">{{PLACE_ID}}</span>\n          </div>\n          <div class=\"tooltip-row\">\n            <span class=\"tooltip-label\">Job ID</span>\n            <span class=\"tooltip-value\">{{JOB_ID}}</span>\n          </div>\n        </div>\n      </div>\n    </div>\n\n    <div class=\"main-container\">\n      <!-- LEFT PANEL WRAPPER -->\n      <div\n        class=\"left-panel-wrapper\"\n        style=\"\n          flex: 1;\n          display: flex;\n          flex-direction: column;\n          border-right: 1px solid var(--border-color);\n          min-width: 0;\n          overflow: hidden;\n        \"\n      >\n        <!-- SHARED TOOLBAR -->\n        <div class=\"trace-toolbar\">\n          <div\n            style=\"\n              font-size: 11px;\n              color: var(--text-secondary);\n              margin-right: 20px;\n            \"\n          >\n            Started: {{DATE}}\n          </div>\n          <div style=\"flex: 1\"></div>\n          <div class=\"view-toggle\">\n            <button class=\"view-btn active\" onclick=\"switchView('timeline')\">\n              Timeline\n            </button>\n            <button class=\"view-btn\" onclick=\"switchView('heatmap')\">\n              Heatmap\n            </button>\n          </div>\n          <div class=\"divider\"></div>\n          <div class=\"search-widget\">\n            <div class=\"search-row\">\n              <div\n                class=\"search-chevron\"\n                onclick=\"toggleSearchOptions()\"\n                id=\"searchChevron\"\n              >\n                <svg\n                  width=\"16\"\n                  height=\"16\"\n                  viewBox=\"0 0 16 16\"\n                  fill=\"currentColor\"\n                >\n                  <path\n                    d=\"M6 4l4 4-4 4\"\n                    stroke=\"currentColor\"\n                    stroke-width=\"1.5\"\n                    fill=\"none\"\n                  />\n                </svg>\n              </div>\n              <div class=\"search-input-container\">\n                <input\n                  type=\"text\"\n                  class=\"search-input\"\n                  id=\"filterInput\"\n                  placeholder=\"Filter events...\"\n                  oninput=\"handleFilterInput()\"\n                />\n              </div>\n            </div>\n            <div class=\"search-options\" id=\"searchOptions\">\n              <div class=\"time-range-row\">\n                <span>Time Range:</span>\n                <input\n                  type=\"number\"\n                  class=\"time-input-styled\"\n                  id=\"minTimeInput\"\n                  placeholder=\"Start\"\n                  oninput=\"handleTimeInput()\"\n                />\n                <span>-</span>\n                <input\n                  type=\"number\"\n                  class=\"time-input-styled\"\n                  id=\"maxTimeInput\"\n                  placeholder=\"End\"\n                  oninput=\"handleTimeInput()\"\n                />\n                <select\n                  class=\"unit-select\"\n                  id=\"timeUnitSelect\"\n                  onchange=\"handleTimeInput()\"\n                >\n                  <option value=\"1\">s</option>\n                  <option value=\"0.001\">ms</option>\n                </select>\n              </div>\n              <div class=\"filter-options-row\">\n                <label class=\"filter-checkbox-label\"\n                  ><input\n                    type=\"checkbox\"\n                    class=\"filter-checkbox\"\n                    id=\"filterIncoming\"\n                    onchange=\"handleFilterInput()\"\n                  />\n                  Incoming</label\n                >\n                <label class=\"filter-checkbox-label\"\n                  ><input\n                    type=\"checkbox\"\n                    class=\"filter-checkbox\"\n                    id=\"filterOutgoing\"\n                    onchange=\"handleFilterInput()\"\n                  />\n                  Outgoing</label\n                >\n                <div\n                  style=\"\n                    width: 1px;\n                    height: 14px;\n                    background: var(--border-color);\n                    margin: 0 4px;\n                  \"\n                ></div>\n                <label class=\"filter-checkbox-label\"\n                  ><input\n                    type=\"checkbox\"\n                    class=\"filter-checkbox\"\n                    id=\"filterActor\"\n                    onchange=\"handleFilterInput()\"\n                  />\n                  Actor</label\n                >\n                <label class=\"filter-checkbox-label\"\n                  ><input\n                    type=\"checkbox\"\n                    class=\"filter-checkbox\"\n                    id=\"filterNonActor\"\n                    onchange=\"handleFilterInput()\"\n                  />\n                  Non-Actor</label\n                >\n                <div\n                  style=\"\n                    width: 1px;\n                    height: 14px;\n                    background: var(--border-color);\n                    margin: 0 4px;\n                  \"\n                ></div>\n                <label class=\"filter-checkbox-label\"\n                  ><input\n                    type=\"checkbox\"\n                    class=\"filter-checkbox\"\n                    id=\"filterArgs\"\n                    onchange=\"handleFilterInput()\"\n                  />\n                  Args</label\n                >\n                <label class=\"filter-checkbox-label\"\n                  ><input\n                    type=\"checkbox\"\n                    class=\"filter-checkbox\"\n                    id=\"filterProto\"\n                    onchange=\"handleFilterInput()\"\n                  />\n                  Proto</label\n                >\n                <label class=\"filter-checkbox-label\"\n                  ><input\n                    type=\"checkbox\"\n                    class=\"filter-checkbox\"\n                    id=\"filterConst\"\n                    onchange=\"handleFilterInput()\"\n                  />\n                  Const</label\n                >\n                <label class=\"filter-checkbox-label\"\n                  ><input\n                    type=\"checkbox\"\n                    class=\"filter-checkbox\"\n                    id=\"filterHash\"\n                    onchange=\"handleFilterInput()\"\n                  />\n                  Hash</label\n                >\n                <label class=\"filter-checkbox-label\"\n                  ><input\n                    type=\"checkbox\"\n                    class=\"filter-checkbox\"\n                    id=\"filterSource\"\n                    onchange=\"handleFilterInput()\"\n                  />\n                  Source</label\n                >\n              </div>\n            </div>\n          </div>\n        </div>\n\n        <!-- TIMELINE VIEW -->\n        <div class=\"trace-panel\" id=\"timelinePanel\" style=\"border-right: none\">\n          <div class=\"trace-header-row\">\n            <div class=\"col-list\">Remote</div>\n            <div class=\"col-timeline\" id=\"timelineHeader\">\n              <div class=\"timeline-ruler\" id=\"ruler\"></div>\n            </div>\n          </div>\n\n          <div class=\"trace-rows\" id=\"rowsContainer\">\n            <div id=\"virtualSpacer\" class=\"virtual-spacer\"></div>\n            <div id=\"virtualContent\" class=\"virtual-content\"></div>\n          </div>\n        </div>\n\n        <!-- HEATMAP VIEW -->\n        <div class=\"heatmap-container\" id=\"heatmapPanel\">\n          <div\n            id=\"heatmapScroll\"\n            style=\"\n              width: 100%;\n              height: 100%;\n              overflow-x: auto;\n              overflow-y: hidden;\n              position: relative;\n            \"\n          >\n            <div\n              id=\"heatmapSpacer\"\n              style=\"\n                height: 1px;\n                width: 100%;\n                position: absolute;\n                top: 0;\n                left: 0;\n                pointer-events: none;\n              \"\n            ></div>\n            <canvas\n              id=\"heatmapCanvas\"\n              class=\"heatmap-canvas\"\n              style=\"\n                position: sticky;\n                left: 0;\n                top: 0;\n                width: 100%;\n                height: 100%;\n              \"\n            ></canvas>\n          </div>\n          <div\n            id=\"heatmapTooltip\"\n            class=\"heatmap-tooltip\"\n            style=\"\n              display: none;\n              position: absolute;\n              background: #1c2128;\n              border: 1px solid #30363d;\n              padding: 4px 8px;\n              border-radius: 4px;\n              font-size: 11px;\n              color: #c9d1d9;\n              pointer-events: none;\n              z-index: 100;\n            \"\n          ></div>\n        </div>\n      </div>\n\n      <!-- RIGHT PANEL -->\n      <div class=\"details-panel\" id=\"detailsPanel\">\n        <div id=\"detailsContent\"></div>\n      </div>\n    </div>\n\n    <div class=\"footer\">\n      <div>Ended: {{END_DATE}}</div>\n      <span\n        id=\"statsLabel\"\n        style=\"\n          color: var(--text-secondary);\n          font-size: 11px;\n          margin-right: 10px;\n        \"\n      >\n        {{EVENT_COUNT}} Events \226\128\162 {{TOTAL_DURATION}}s\n      </span>\n    </div>\n\n    <!-- Toast Notification -->\n    <div id=\"toast\" class=\"toast-container\">\n      <svg\n        xmlns=\"http://www.w3.org/2000/svg\"\n        width=\"24\"\n        height=\"24\"\n        viewBox=\"0 0 24 24\"\n        fill=\"none\"\n        stroke=\"currentColor\"\n        stroke-width=\"2\"\n        stroke-linecap=\"round\"\n        stroke-linejoin=\"round\"\n        class=\"lucide lucide-check\"\n      >\n        <path d=\"M20 6 9 17l-5-5\" />\n      </svg>\n      <span id=\"toastMessage\">Copied to clipboard</span>\n    </div>\n\n    <!-- Data Script -->\n    <script type=\"application/json\" id=\"dictionary-data\">\n      {{DICTIONARY_JSON}}\n    </script>\n    <script type=\"application/json\" id=\"event-data\">\n      {{EVENTS_JSON}}\n    </script>\n\n    <script>\n      // Data Parsing\n      let startTime = {{START_TIME}}; // Seconds\n      const totalDuration = {{DURATION}};\n      const dictionary = JSON.parse(document.getElementById('dictionary-data').textContent);\n      const rawEvents = JSON.parse(document.getElementById('event-data').textContent);\n\n      // Reconstruct Events\n      const allEvents = rawEvents.map(e => ({\n        name: dictionary[e[0]],\n        className: dictionary[e[1]],\n        path: dictionary[e[2]],\n        type: dictionary[e[3]],\n        timestamp: e[4],\n        origin: dictionary[e[5]],\n\n        args: dictionary[e[6]],\n        method: dictionary[e[7]],\n\n        funcName: dictionary[e[8]],\n        funcLine: e[9],\n        funcSource: dictionary[e[10]],\n        isExecutor: e[11] === 1,\n        isActor: e[12] === 1,\n\n        funcHash: dictionary[e[13]],\n        upvalues: dictionary[e[14]],\n        protos: dictionary[e[15]],\n        constants: dictionary[e[16]]\n      }));\n\n      if (allEvents.length > 0) {\n        const minTimestamp = Math.min(...allEvents.map(e => e.timestamp));\n        if (minTimestamp < startTime) {\n          startTime = minTimestamp;\n        }\n      }\n\n      // Preprocess events\n      allEvents.forEach(evt => {\n        evt.relTime = Math.max(0, evt.timestamp - startTime);\n\n        const typeLower = evt.type.toLowerCase();\n        const methodLower = evt.method ? evt.method.toLowerCase() : '';\n\n        if (methodLower.includes('client') || typeLower.includes('client')) {\n          evt.typeClass = 'incoming';\n        } else {\n          evt.typeClass = 'outgoing';\n        }\n      });\n\n      // State\n      let filteredEvents = allEvents;\n      let zoomLevel = 1;\n      let selectedEvent = null;\n      let filterTimeout = null;\n      let filterMinTime = 0;\n      let filterMaxTime = totalDuration;\n\n      // Initialize Time Inputs\n      document.getElementById('minTimeInput').value = \"0\";\n      document.getElementById('maxTimeInput').value = totalDuration.toFixed(2);\n\n      // Virtual Scroll State\n      let lastStartIndex = -1;\n      let lastEndIndex = -1;\n      let isScrolling = false;\n\n      // DOM Elements\n      const rowsContainer = document.getElementById('rowsContainer');\n      const virtualSpacer = document.getElementById('virtualSpacer');\n      const virtualContent = document.getElementById('virtualContent');\n      const rulerContainer = document.getElementById('ruler');\n      const detailsPanel = document.getElementById('detailsPanel');\n      const detailsContent = document.getElementById('detailsContent');\n      const timelineHeader = document.getElementById('timelineHeader');\n      const statsLabel = document.getElementById('statsLabel');\n\n\n      // Heatmap State\n      let currentView = 'timeline';\n      let heatmapZoom = 1;\n      let detailsWasVisible = false;\n      const heatmapCanvas = document.getElementById('heatmapCanvas');\n      const heatmapTooltip = document.getElementById('heatmapTooltip');\n\n      const timelinePanel = document.getElementById('timelinePanel');\n      const heatmapPanel = document.getElementById('heatmapPanel');\n\n      // Heatmap Interaction\n      heatmapCanvas.addEventListener('wheel', (e) => {\n        if (currentView !== 'heatmap') return;\n        e.preventDefault();\n\n        const delta = e.deltaY > 0 ? 1.1 : 0.9;\n        heatmapZoom = Math.max(1, Math.min(50, heatmapZoom * delta));\n        renderHeatmap();\n      }, { passive: false });\n\n      heatmapCanvas.addEventListener('mousemove', (e) => {\n        if (currentView !== 'heatmap') return;\n        const rect = heatmapCanvas.getBoundingClientRect();\n        const x = e.clientX - rect.left;\n        const y = e.clientY - rect.top;\n\n        if (!window.lastHeatmapData) return;\n\n        const { sortedRemotes, rowHeight, binWidth, remotes, maxBinCount, timeBins, binDuration, margin, scrollLeft } = window.lastHeatmapData;\n        const width = heatmapPanel.clientWidth;\n        const height = heatmapPanel.clientHeight;\n\n        if (x < margin.left || x > width - margin.right || y < margin.top || y > height - margin.bottom) {\n          heatmapTooltip.style.display = 'none';\n          return;\n        }\n\n        const rowIndex = Math.floor((y - margin.top) / rowHeight);\n\n        // Calculate colIndex based on virtual position (x + scrollLeft)\n        const colIndex = Math.floor((x - margin.left + scrollLeft) / binWidth);\n\n        if (rowIndex >= 0 && rowIndex < sortedRemotes.length && colIndex >= 0 && colIndex < timeBins) {\n          const remote = sortedRemotes[rowIndex];\n          // Calculate count for this bin\n          let count = 0;\n          remotes[remote].forEach(evt => {\n            const binIndex = Math.min(Math.floor(evt.relTime / binDuration), timeBins - 1);\n            if (binIndex === colIndex) count++;\n          });\n\n          heatmapTooltip.style.display = 'block';\n          heatmapTooltip.innerHTML = `<b>${remote}</b><br>Time: ${(colIndex * binDuration).toFixed(1)}s<br>Count: ${count}`;\n\n          const tooltipWidth = heatmapTooltip.offsetWidth;\n          const panelWidth = heatmapPanel.clientWidth;\n\n          let leftPos = x + 10;\n          if (leftPos + tooltipWidth > panelWidth - 10) {\n            leftPos = x - tooltipWidth - 10;\n          }\n\n          heatmapTooltip.style.left = leftPos + 'px';\n          heatmapTooltip.style.top = (y + 10) + 'px';\n        } else {\n          heatmapTooltip.style.display = 'none';\n        }\n      });\n\n      heatmapCanvas.addEventListener('mouseleave', () => {\n        heatmapTooltip.style.display = 'none';\n      });\n\n      document.getElementById('heatmapScroll').addEventListener('scroll', () => {\n        if (currentView === 'heatmap') {\n          renderHeatmap();\n        }\n      });\n\n      function switchView(view) {\n        currentView = view;\n        document.querySelectorAll('.view-btn').forEach(btn => {\n          btn.classList.toggle('active', btn.innerText.toLowerCase() === view);\n        });\n\n        if (view === 'timeline') {\n          timelinePanel.style.display = 'flex';\n          heatmapPanel.classList.remove('visible');\n\n          if (detailsWasVisible) {\n            detailsPanel.classList.add('visible');\n          }\n\n          renderVirtualRows(true);\n        } else {\n          if (detailsPanel.classList.contains('visible')) {\n            detailsWasVisible = true;\n            detailsPanel.classList.remove('visible');\n          } else {\n            detailsWasVisible = false;\n          }\n\n          timelinePanel.style.display = 'none';\n          heatmapPanel.classList.add('visible');\n          renderHeatmap();\n        }\n      }\n\n      function renderHeatmap() {\n        const ctx = heatmapCanvas.getContext('2d');\n        const containerWidth = heatmapPanel.clientWidth;\n        const height = heatmapPanel.clientHeight;\n        const scrollLeft = document.getElementById('heatmapScroll').scrollLeft;\n\n        // Calculate total virtual width\n        const totalWidth = containerWidth * heatmapZoom;\n\n        // Update Spacer\n        document.getElementById('heatmapSpacer').style.width = totalWidth + 'px';\n\n        const dpr = window.devicePixelRatio || 1;\n\n        // Canvas is always viewport size\n        heatmapCanvas.width = containerWidth * dpr;\n        heatmapCanvas.height = height * dpr;\n        ctx.scale(dpr, dpr);\n\n        ctx.fillStyle = '#0d1117';\n        ctx.fillRect(0, 0, containerWidth, height);\n\n        if (filteredEvents.length === 0) return;\n\n        const remotes = {};\n        filteredEvents.forEach(evt => {\n          if (!remotes[evt.name]) remotes[evt.name] = [];\n          remotes[evt.name].push(evt);\n        });\n\n        const sortedRemotes = Object.keys(remotes).sort((a, b) => remotes[b].length - remotes[a].length);\n\n        const margin = { top: 30, right: 20, bottom: 20, left: 150 };\n\n        // Virtual chart width\n        const chartWidth = totalWidth - margin.left - margin.right;\n        const chartHeight = height - margin.top - margin.bottom;\n\n        // Apply Zoom to time bins\n        const timeBins = Math.floor(100 * heatmapZoom);\n        const binWidth = chartWidth / timeBins;\n        const binDuration = totalDuration / timeBins;\n\n        // Adjust row height to fit\n        const rowHeight = Math.min(30, chartHeight / sortedRemotes.length);\n\n        // Store data for tooltip (adjusted for virtual scroll)\n        window.lastHeatmapData = { sortedRemotes, rowHeight, binWidth, remotes, timeBins, binDuration, margin, scrollLeft };\n\n        ctx.strokeStyle = '#30363d';\n        ctx.lineWidth = 1;\n\n        ctx.font = '11px -apple-system, BlinkMacSystemFont, \"Segoe UI\", Helvetica, Arial, sans-serif';\n        ctx.textAlign = 'right';\n        ctx.textBaseline = 'middle';\n\n        let maxBinCount = 0;\n        sortedRemotes.forEach(remote => {\n          const bins = new Array(timeBins).fill(0);\n          remotes[remote].forEach(evt => {\n            const binIndex = Math.min(Math.floor(evt.relTime / binDuration), timeBins - 1);\n            bins[binIndex]++;\n          });\n          maxBinCount = Math.max(maxBinCount, ...bins);\n        });\n\n        // Update Legend Labels\n        window.lastHeatmapData.maxBinCount = maxBinCount;\n        window.lastHeatmapData.maxBinCount = maxBinCount;\n\n        sortedRemotes.forEach((remote, i) => {\n          const y = margin.top + (i * rowHeight);\n\n          // Draw Label (Fixed position)\n          ctx.fillStyle = '#8b949e';\n          ctx.fillText(remote.length > 20 ? remote.slice(0, 18) + '...' : remote, margin.left - 10, y + rowHeight / 2);\n\n          // Draw Line\n          ctx.beginPath();\n          ctx.moveTo(margin.left, y);\n          ctx.lineTo(containerWidth - margin.right, y);\n          ctx.stroke();\n\n          const bins = new Array(timeBins).fill(0);\n          remotes[remote].forEach(evt => {\n            const binIndex = Math.min(Math.floor(evt.relTime / binDuration), timeBins - 1);\n            bins[binIndex]++;\n          });\n\n          bins.forEach((count, binIndex) => {\n            if (count === 0) return;\n\n            // Calculate virtual X\n            const virtualX = margin.left + (binIndex * binWidth);\n\n            // Apply scroll offset\n            const screenX = virtualX - scrollLeft;\n\n            // Only draw if visible\n            if (screenX + binWidth < margin.left || screenX > containerWidth - margin.right) return;\n\n            // Clamp to chart area\n            const drawX = Math.max(margin.left, screenX);\n            const drawWidth = Math.min(binWidth, (containerWidth - margin.right) - drawX);\n\n            const intensity = count / maxBinCount;\n            const hue = (1 - intensity) * 240;\n            ctx.fillStyle = `hsla(${hue}, 70%, 50%, 0.8)`;\n\n            ctx.fillRect(drawX, y + 2, drawWidth - 1, rowHeight - 4);\n          });\n        });\n\n        ctx.fillStyle = '#8b949e';\n        ctx.textAlign = 'center';\n        ctx.textBaseline = 'top';\n\n        const numTicks = 5 * Math.ceil(heatmapZoom);\n\n        for (let i = 0; i <= numTicks; i++) {\n          const virtualX = margin.left + (chartWidth * (i / numTicks));\n          const screenX = virtualX - scrollLeft;\n\n          if (screenX < margin.left || screenX > containerWidth - margin.right) continue;\n\n          const time = (totalDuration * (i / numTicks)).toFixed(1) + 's';\n          ctx.fillText(time, screenX, margin.top - 20);\n\n          ctx.beginPath();\n          ctx.moveTo(screenX, margin.top);\n          ctx.lineTo(screenX, height - margin.bottom);\n          ctx.stroke();\n        }\n      }\n\n      // Resize observer for heatmap\n      new ResizeObserver(() => {\n        if (currentView === 'heatmap' && heatmapPanel.classList.contains('visible')) {\n          renderHeatmap();\n        }\n      }).observe(heatmapPanel);\n\n      // Window resize handler for timeline\n      window.addEventListener('resize', () => {\n        if (currentView === 'timeline') {\n          renderVirtualRows(true);\n          renderRuler();\n        }\n      });\n\n      // Virtual Scroll Config\n      const ROW_HEIGHT = 29; // 28px + 1px border\n      const BUFFER_SIZE = 5;\n\n      function formatTime(seconds) {\n        if (seconds < 1) return (seconds * 1000).toFixed(1) + 'ms';\n        return seconds.toFixed(2) + 's';\n      }\n\n      function formatAbsTime(timestamp) {\n        const date = new Date(timestamp * 1000);\n        return date.toLocaleTimeString();\n      }\n\n      function getIconUrl(className) {\n        return `https://robloxapi.github.io/ref/icons/dark/${className}.png`;\n      }\n\n      function escapeHtml(text) {\n        if (!text) return '';\n        return text\n          .replace(/&/g, \"&amp;\")\n          .replace(/</g, \"&lt;\")\n          .replace(/>/g, \"&gt;\")\n          .replace(/\"/g, \"&quot;\")\n          .replace(/'/g, \"&#039;\");\n      }\n\n      function syntaxHighlight(text) {\n        if (!text) return '';\n\n        text = escapeHtml(text);\n        return text\n          .replace(/&quot;((?:[^&]|&(?!(quot;)))*)&quot;/g, '<span class=\"hl-str\">\"$1\"</span>')\n          .replace(/\\b(\\d+(\\.\\d+)?)\\b/g, '<span class=\"hl-num\">$1</span>')\n          .replace(/\\b(true|false)\\b/g, '<span class=\"hl-bool\">$1</span>')\n          .replace(/\\b(nil)\\b/g, '<span class=\"hl-nil\">$1</span>');\n      }\n\n      // Toast Logic\n      function showToast(message) {\n        const toast = document.getElementById('toast');\n        const msgSpan = document.getElementById('toastMessage');\n        msgSpan.innerText = message;\n        toast.classList.add('visible');\n        setTimeout(() => {\n          toast.classList.remove('visible');\n        }, 2000);\n      }\n\n      function copyText(text, message = \"Copied to clipboard\") {\n        navigator.clipboard.writeText(text).then(() => {\n          showToast(message);\n        });\n      }\n\n      function copyArgs(btn) {\n        if (selectedEvent) {\n          navigator.clipboard.writeText(selectedEvent.args).then(() => {\n            btn.classList.add('copied');\n            setTimeout(() => btn.classList.remove('copied'), 2000);\n          });\n        }\n      }\n\n      function toggleCallerDropdown(e) {\n        e.stopPropagation();\n        const menu = document.getElementById('callerDropdown');\n        if (menu) {\n          menu.classList.toggle('visible');\n        }\n      }\n\n      function copyCallerData(type) {\n        if (!selectedEvent) return;\n        let text = \"\";\n        let msg = \"Copied to clipboard\";\n        switch (type) {\n          case 'hash':\n            text = selectedEvent.funcHash || \"N/A\";\n            msg = \"Function Hash copied\";\n            break;\n          case 'upvalues':\n            text = selectedEvent.upvalues || \"{}\";\n            msg = \"Upvalues copied\";\n            break;\n          case 'protos':\n            text = selectedEvent.protos || \"[]\";\n            msg = \"Protos copied\";\n            break;\n          case 'path':\n            text = selectedEvent.origin || \"N/A\";\n            msg = \"Script Path copied\";\n            break;\n          case 'source':\n            text = selectedEvent.funcSource || \"N/A\";\n            msg = \"Source copied\";\n            break;\n        }\n        copyText(text, msg);\n        document.getElementById('callerDropdown').classList.remove('visible');\n      }\n\n      // Render Ruler\n      function renderRuler() {\n        rulerContainer.innerHTML = '';\n        const tickCount = Math.max(5, Math.floor(5 * zoomLevel));\n        for (let i = 0; i <= tickCount; i++) {\n          const pct = (i / tickCount) * 100;\n          const time = (totalDuration * (i / tickCount));\n          const tick = document.createElement('div');\n          tick.className = 'tick';\n          tick.style.left = pct + '%';\n          tick.innerText = formatTime(time);\n          rulerContainer.appendChild(tick);\n        }\n      }\n\n      // Scroll Sync\n      rowsContainer.addEventListener('scroll', () => {\n        timelineHeader.scrollLeft = rowsContainer.scrollLeft;\n      });\n\n      // Virtual Rendering\n      function renderVirtualRows(force = false) {\n        const scrollTop = rowsContainer.scrollTop;\n        const containerHeight = rowsContainer.clientHeight;\n\n        const totalHeight = filteredEvents.length * ROW_HEIGHT;\n        virtualSpacer.style.height = totalHeight + 'px';\n\n        const startIndex = Math.floor(scrollTop / ROW_HEIGHT);\n        const endIndex = Math.min(filteredEvents.length, Math.ceil((scrollTop + containerHeight) / ROW_HEIGHT) + BUFFER_SIZE);\n\n        if (!force && startIndex === lastStartIndex && endIndex === lastEndIndex) {\n          return;\n        }\n\n        lastStartIndex = startIndex;\n        lastEndIndex = endIndex;\n\n        const visibleEvents = filteredEvents.slice(Math.max(0, startIndex - BUFFER_SIZE), endIndex);\n        const startOffset = Math.max(0, startIndex - BUFFER_SIZE) * ROW_HEIGHT;\n\n        virtualContent.style.transform = `translateY(${startOffset}px)`;\n\n        const fragment = document.createDocumentFragment();\n        const zoomWidth = (100 * zoomLevel) + '%';\n\n        // Sync Ruler Width\n        document.getElementById('ruler').style.width = zoomWidth;\n\n        visibleEvents.forEach((evt) => {\n          const row = document.createElement('div');\n          row.className = 'trace-row';\n          if (selectedEvent === evt) row.classList.add('selected');\n\n          row.evtData = evt;\n          row.onclick = function () { selectRow(this, evt); };\n\n          const listCol = document.createElement('div');\n          listCol.className = 'row-list';\n          listCol.innerHTML = `\n                    <div class=\"type-icon\" style=\"background-image: url('${getIconUrl(evt.className)}')\"></div>\n                    <div class=\"remote-name\" title=\"${evt.name}\">${evt.name}</div>\n                `;\n\n          const timelineCol = document.createElement('div');\n          timelineCol.className = 'row-timeline';\n          timelineCol.style.width = zoomWidth;\n          timelineCol.style.flex = 'none';\n\n          const marker = document.createElement('div');\n          marker.className = `timeline-marker ${evt.typeClass}`;\n\n          let leftPct = ((evt.relTime) / totalDuration) * 100;\n          if (leftPct > 99) leftPct = 99;\n\n          let widthPct = (0.05 / totalDuration) * 100;\n          if (widthPct < 1) widthPct = 1;\n\n          marker.style.left = leftPct + '%';\n          marker.style.width = widthPct + '%';\n\n          timelineCol.appendChild(marker);\n          row.appendChild(listCol);\n          row.appendChild(timelineCol);\n          fragment.appendChild(row);\n        });\n\n        virtualContent.innerHTML = '';\n        virtualContent.appendChild(fragment);\n      }\n\n      // Ctrl+F Handler\n      document.addEventListener('keydown', function (e) {\n        if ((e.ctrlKey || e.metaKey) && e.key === 'f') {\n          e.preventDefault();\n          const filterInput = document.getElementById('filterInput');\n          filterInput.focus();\n          filterInput.select();\n        }\n      });\n\n      // Initial Render\n      renderVirtualRows();\n      renderRuler();\n\n      function selectRow(el, evt) {\n        const prev = virtualContent.querySelector('.trace-row.selected');\n        if (prev) prev.classList.remove('selected');\n\n        el.classList.add('selected');\n        selectedEvent = evt;\n\n        detailsPanel.classList.add('visible');\n\n        const isIncoming = evt.typeClass === 'incoming';\n        const badgeClass = isIncoming ? 'incoming' : 'outgoing';\n\n        // Flags with Unified Style\n        let flagsHtml = '';\n        if (evt.isExecutor) {\n          flagsHtml += `<div class=\"badge-pill executor\">Executor</div>`;\n        }\n        if (evt.isActor) {\n          flagsHtml += `<div class=\"badge-pill actor\">Actor</div>`;\n        }\n        if (!flagsHtml) flagsHtml = '<span style=\"color:var(--text-secondary); font-size:11px;\">None</span>';\n\n        const highlightedArgs = syntaxHighlight(evt.args);\n\n        // Icons\n        const copyIcon = `<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-copy icon-copy\"><rect width=\"14\" height=\"14\" x=\"8\" y=\"8\" rx=\"2\" ry=\"2\"/><path d=\"M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2\"/></svg>`;\n        const checkIcon = `<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-check icon-check\"><path d=\"M20 6 9 17l-5-5\"/></svg>`;\n        const parenthesesIcon = `<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-parentheses\"><path d=\"M8 21s-4-3-4-9 4-9 4-9\"/><path d=\"M16 3s4 3 4 9-4 9-4 9\"/></svg>`;\n\n        // Dropdown Icons\n        const hashIcon = `<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-hash\"><line x1=\"4\" x2=\"20\" y1=\"9\" y2=\"9\"/><line x1=\"4\" x2=\"20\" y1=\"15\" y2=\"15\"/><line x1=\"10\" x2=\"8\" y1=\"3\" y2=\"21\"/><line x1=\"16\" x2=\"14\" y1=\"3\" y2=\"21\"/></svg>`;\n        const upvaluesIcon = `<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-a-arrow-up\"><path d=\"m14 11 4-4 4 4\"/><path d=\"M18 16V7\"/><path d=\"m2 16 4.039-9.69a.5.5 0 0 1 .923 0L11 16\"/><path d=\"M3.304 13h6.392\"/></svg>`;\n        const protosIcon = `<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-square-function\"><rect width=\"18\" height=\"18\" x=\"3\" y=\"3\" rx=\"2\" ry=\"2\"/><path d=\"M9 17c2 0 2.8-1 2.8-2.8V10c0-2 1-3.3 3.2-3\"/><path d=\"M9 11.2h5.7\"/></svg>`;\n        const pathIcon = `<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-route\"><circle cx=\"6\" cy=\"19\" r=\"3\"/><path d=\"M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15\"/><circle cx=\"18\" cy=\"5\" r=\"3\"/></svg>`;\n        const sourceIcon = `<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-code\"><path d=\"m16 18 6-6-6-6\"/><path d=\"m8 6-6 6 6 6\"/></svg>`;\n        const boxIcon = `<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-box\"><path d=\"M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z\"/><path d=\"m3.3 7 8.7 5 8.7-5\"/><path d=\"M12 22v-9\"/></svg>`;\n\n        detailsContent.innerHTML = `\n                <div class=\"details-header-top\">\n                    <div class=\"details-title-group\">\n                        <div class=\"details-icon-large\" style=\"background-image: url('${getIconUrl(evt.className)}')\"></div>\n                        <div class=\"details-name-large\">${escapeHtml(evt.name)}</div>\n                    </div>\n                    <div class=\"details-actions\">\n                        <div class=\"badge-pill ${badgeClass}\">${evt.typeClass.toUpperCase()}</div>\n                        <div class=\"close-btn\" onclick=\"closeDetails()\">\195\151</div>\n                    </div>\n                </div>\n\n                <div class=\"details-path-row\" onclick=\"copyText('${escapeHtml(evt.path).replace(/'/g, \"\\\\'\").replace(/\"/g, \"&quot;\")}', 'Remote Path copied')\" title=\"Click to copy path\"><span class=\"clickable-path\">${escapeHtml(evt.path)}</span></div>\n\n                <div class=\"info-grid\">\n                    <div class=\"info-item\">\n                        <h4>Method</h4>\n                        <div>${escapeHtml(evt.method)}</div>\n                    </div>\n                    <div class=\"info-item\">\n                        <h4>Timestamp</h4>\n                        <div>${formatAbsTime(evt.timestamp)} <span style=\"color:var(--text-secondary)\">(+${formatTime(evt.relTime)})</span></div>\n                    </div>\n                    <div class=\"info-item\">\n                        <h4>ClassName</h4>\n                        <div>${escapeHtml(evt.className)}</div>\n                    </div>\n                    <div class=\"info-item\">\n                        <h4>Remote Path</h4>\n                        <div class=\"remote-path-copy clickable-path\" onclick=\"copyText('${escapeHtml(evt.path).replace(/'/g, \"\\\\'\").replace(/\"/g, \"&quot;\")}', 'Remote Path copied')\" title=\"Click to copy path\">${escapeHtml(evt.path)}</div>\n                    </div>\n                </div>\n\n                <div class=\"content-box\">\n                    <div class=\"box-title\">Caller Data</div>\n                    <button class=\"copy-icon-btn\" onclick=\"toggleCallerDropdown(event)\" title=\"Copy Caller Info\">${copyIcon}</button>\n\n                    <div id=\"callerDropdown\" class=\"dropdown-menu\">\n                        <div class=\"dropdown-item\" onclick=\"copyCallerData('hash')\">${hashIcon} Function Hash</div>\n                        <div class=\"dropdown-item\" onclick=\"copyCallerData('upvalues')\">${upvaluesIcon} Upvalues</div>\n                        <div class=\"dropdown-item\" onclick=\"copyCallerData('protos')\">${protosIcon} Protos</div>\n                        <div class=\"dropdown-item\" onclick=\"copyCallerData('constants')\">${boxIcon} Constants</div>\n                        <div class=\"dropdown-item\" onclick=\"copyCallerData('path')\">${pathIcon} Script Path</div>\n                        <div class=\"dropdown-item\" onclick=\"copyCallerData('source')\">${sourceIcon} Func Source</div>\n                    </div>\n\n                    <div class=\"caller-header\">\n                        <div class=\"caller-icon\">${parenthesesIcon}</div>\n                        <div class=\"caller-info\">\n                            <div class=\"caller-name\">${escapeHtml(evt.funcName)} <span class=\"caller-source\">:${evt.funcLine}</span></div>\n                            <div class=\"caller-source\">${escapeHtml(evt.funcSource)}</div>\n                        </div>\n                    </div>\n\n                    <div class=\"info-grid-2\" style=\"margin-bottom:0; gap:10px;\">\n                         <div class=\"info-item-2\" style=\"margin-right: 100px;\">\n                            <h4>Flags</h4>\n                            <div class=\"flags-row\">${flagsHtml}</div>\n                         </div>\n                         <div class=\"info-item-2\">\n                            <h4>Origin</h4>\n                            <div class=\"origin-row clickable-path\" onclick=\"copyText('${escapeHtml(evt.origin).replace(/'/g, \"\\\\'\").replace(/\"/g, \"&quot;\")}', 'Origin copied')\" title=\"Click to copy origin\">${escapeHtml(evt.origin)}</div>\n                         </div>\n                    </div>\n                </div>\n\n                <div class=\"content-box\">\n                    <div class=\"box-title\">Arguments</div>\n                    <button class=\"copy-icon-btn\" onclick=\"copyArgs(this)\" title=\"Copy Arguments\">\n                        ${copyIcon}\n                        ${checkIcon}\n                    </button>\n                    <div class=\"args-content\">${highlightedArgs}</div>\n                </div>\n            `;\n      }\n\n      function closeDetails() {\n        detailsPanel.classList.remove('visible');\n        const prev = virtualContent.querySelector('.trace-row.selected');\n        if (prev) prev.classList.remove('selected');\n        selectedEvent = null;\n      }\n\n      function handleFilterInput() {\n        if (filterTimeout) clearTimeout(filterTimeout);\n        filterTimeout = setTimeout(applyFilters, 300);\n      }\n\n      function toggleSearchOptions() {\n        const widget = document.getElementById('searchChevron').closest('.search-widget');\n        const options = document.getElementById('searchOptions');\n        const chevron = document.getElementById('searchChevron');\n\n        options.classList.toggle('visible');\n        chevron.classList.toggle('expanded');\n        widget.classList.toggle('expanded');\n      }\n\n      function handleTimeInput() {\n        const minVal = parseFloat(document.getElementById('minTimeInput').value);\n        const maxVal = parseFloat(document.getElementById('maxTimeInput').value);\n        const unit = parseFloat(document.getElementById('timeUnitSelect').value);\n\n        filterMinTime = isNaN(minVal) ? 0 : minVal * unit;\n        filterMaxTime = isNaN(maxVal) ? totalDuration : maxVal * unit;\n\n        if (filterTimeout) clearTimeout(filterTimeout);\n        filterTimeout = setTimeout(applyFilters, 300);\n      }\n\n      function applyFilters() {\n        const query = document.getElementById('filterInput').value.toLowerCase();\n        const checkIncoming = document.getElementById('filterIncoming').checked;\n        const checkOutgoing = document.getElementById('filterOutgoing').checked;\n        const checkActor = document.getElementById('filterActor').checked;\n        const checkNonActor = document.getElementById('filterNonActor').checked;\n        const checkArgs = document.getElementById('filterArgs').checked;\n        const checkProto = document.getElementById('filterProto').checked;\n        const checkConst = document.getElementById('filterConst').checked;\n        const checkHash = document.getElementById('filterHash').checked;\n        const checkSource = document.getElementById('filterSource').checked;\n\n        filteredEvents = allEvents.filter(evt => {\n          // Filter by Type (Incoming/Outgoing)\n          if (checkIncoming || checkOutgoing) {\n            const isIncoming = evt.typeClass === 'incoming';\n            const isOutgoing = evt.typeClass === 'outgoing';\n            if (!((checkIncoming && isIncoming) || (checkOutgoing && isOutgoing))) {\n              return false;\n            }\n          }\n\n          // Filter by Actor Status\n          if (checkActor || checkNonActor) {\n            const isActor = evt.isActor;\n            const isNonActor = !evt.isActor;\n            if (!((checkActor && isActor) || (checkNonActor && isNonActor))) {\n              return false;\n            }\n          }\n\n          let matchesText = !query;\n\n          if (!matchesText) {\n            // Default search: Name and Type\n            if (evt.name.toLowerCase().includes(query) || evt.type.toLowerCase().includes(query)) {\n              matchesText = true;\n            }\n            // Advanced search options\n            else {\n              if (checkArgs && evt.args && evt.args.toLowerCase().includes(query)) matchesText = true;\n              else if (checkProto && evt.protos && evt.protos.toLowerCase().includes(query)) matchesText = true;\n              else if (checkConst && evt.constants && evt.constants.toLowerCase().includes(query)) matchesText = true;\n              else if (checkHash && evt.funcHash && evt.funcHash.toLowerCase().includes(query)) matchesText = true;\n              else if (checkSource && evt.funcSource && evt.funcSource.toLowerCase().includes(query)) matchesText = true;\n            }\n          }\n\n          const matchesTime = evt.relTime >= filterMinTime && evt.relTime <= filterMaxTime;\n\n          return matchesText && matchesTime;\n        });\n\n        // Update Stats\n        statsLabel.innerText = `${filteredEvents.length} Events \226\128\162 ${totalDuration.toFixed(2)}s`;\n\n        // Reset Scroll\n        rowsContainer.scrollTop = 0;\n        lastStartIndex = -1;\n        lastEndIndex = -1;\n\n        if (currentView === 'timeline') {\n          renderVirtualRows(true);\n        } else {\n          renderHeatmap();\n        }\n      } function updateZoom() {\n        const width = (100 * zoomLevel) + '%';\n        rulerContainer.style.width = width;\n        renderRuler();\n        lastStartIndex = -1;\n        renderVirtualRows(true);\n      }\n\n      rowsContainer.addEventListener('wheel', (e) => {\n        if (e.ctrlKey) {\n          e.preventDefault();\n          if (e.deltaY < 0) {\n            zoomLevel = Math.min(zoomLevel * 1.1, 20);\n          } else {\n            zoomLevel = Math.max(zoomLevel / 1.1, 1);\n          }\n          updateZoom();\n        }\n      });\n\n      rowsContainer.addEventListener('scroll', () => {\n        timelineHeader.scrollLeft = rowsContainer.scrollLeft;\n\n        if (!isScrolling) {\n          window.requestAnimationFrame(() => {\n            renderVirtualRows();\n            isScrolling = false;\n          });\n          isScrolling = true;\n        }\n      });\n\n      const sessionInfo = document.querySelector('.session-info');\n      const tooltip = document.querySelector('.session-tooltip');\n\n      sessionInfo.addEventListener('click', (e) => {\n        e.stopPropagation();\n        tooltip.classList.toggle('visible');\n      });\n\n      tooltip.addEventListener('click', (e) => {\n        e.stopPropagation();\n      });\n\n      document.addEventListener('click', () => {\n        tooltip.classList.remove('visible');\n        const dropdown = document.getElementById('callerDropdown');\n        if (dropdown) dropdown.classList.remove('visible');\n      });\n    </script>\n  </body>\n</html>\n"
+                                }
+                            }
+                        }
+                    },
+                    {
+                        28,
+                        2,
+                        {
+                            "Pagination"
+                        }
+                    },
+                    {
+                        32,
+                        1,
+                        {
+                            "UI"
+                        },
+                        {
+                            {
+                                34,
+                                2,
+                                {
+                                    "Constants"
+                                }
+                            },
+                            {
+                                40,
+                                2,
+                                {
+                                    "ImageFetch"
+                                }
+                            },
+                            {
+                                37,
+                                2,
+                                {
+                                    "Helper"
+                                }
+                            },
+                            {
+                                42,
+                                2,
+                                {
+                                    "Interface"
+                                }
+                            },
+                            {
+                                39,
+                                2,
+                                {
+                                    "Icons"
+                                }
+                            },
+                            {
+                                38,
+                                2,
+                                {
+                                    "Highlighter"
+                                }
+                            },
+                            {
+                                45,
+                                2,
+                                {
+                                    "Sonner"
+                                }
+                            },
+                            {
+                                36,
+                                2,
+                                {
+                                    "EnhancedModal"
+                                }
+                            },
+                            {
+                                44,
+                                2,
+                                {
+                                    "Resize"
+                                }
+                            },
+                            {
+                                43,
+                                2,
+                                {
+                                    "LoadingScreen"
+                                }
+                            },
+                            {
+                                33,
+                                2,
+                                {
+                                    "Animations"
+                                }
+                            },
+                            {
+                                41,
+                                2,
+                                {
+                                    "ImprovedButton"
+                                }
+                            },
+                            {
+                                35,
+                                2,
+                                {
+                                    "Drag"
+                                }
+                            }
+                        }
+                    },
+                    {
+                        26,
+                        2,
+                        {
+                            "Hooking"
+                        }
+                    },
+                    {
+                        29,
+                        2,
+                        {
+                            "SaveManager"
+                        }
+                    },
+                    {
+                        30,
+                        1,
+                        {
+                            "Serializer"
+                        },
+                        {
+                            {
+                                31,
+                                2,
+                                {
+                                    "LuaEncode"
                                 }
                             }
                         }
@@ -10435,142 +10577,14 @@ local ObjectTree = {
                                 }
                             }
                         }
-                    },
-                    {
-                        28,
-                        2,
-                        {
-                            "Pagination"
-                        }
-                    },
-                    {
-                        32,
-                        1,
-                        {
-                            "UI"
-                        },
-                        {
-                            {
-                                42,
-                                2,
-                                {
-                                    "Interface"
-                                }
-                            },
-                            {
-                                36,
-                                2,
-                                {
-                                    "EnhancedModal"
-                                }
-                            },
-                            {
-                                40,
-                                2,
-                                {
-                                    "ImageFetch"
-                                }
-                            },
-                            {
-                                35,
-                                2,
-                                {
-                                    "Drag"
-                                }
-                            },
-                            {
-                                33,
-                                2,
-                                {
-                                    "Animations"
-                                }
-                            },
-                            {
-                                43,
-                                2,
-                                {
-                                    "LoadingScreen"
-                                }
-                            },
-                            {
-                                38,
-                                2,
-                                {
-                                    "Highlighter"
-                                }
-                            },
-                            {
-                                44,
-                                2,
-                                {
-                                    "Resize"
-                                }
-                            },
-                            {
-                                41,
-                                2,
-                                {
-                                    "ImprovedButton"
-                                }
-                            },
-                            {
-                                34,
-                                2,
-                                {
-                                    "Constants"
-                                }
-                            },
-                            {
-                                45,
-                                2,
-                                {
-                                    "Sonner"
-                                }
-                            },
-                            {
-                                37,
-                                2,
-                                {
-                                    "Helper"
-                                }
-                            },
-                            {
-                                39,
-                                2,
-                                {
-                                    "Icons"
-                                }
-                            }
-                        }
-                    },
-                    {
-                        29,
-                        2,
-                        {
-                            "SaveManager"
-                        }
-                    },
-                    {
-                        27,
-                        2,
-                        {
-                            "Log"
-                        }
-                    },
-                    {
-                        25,
-                        2,
-                        {
-                            "FileLog"
-                        }
-                    },
-                    {
-                        24,
-                        2,
-                        {
-                            "Connect"
-                        }
                     }
+                }
+            },
+            {
+                2,
+                2,
+                {
+                    "ExecutorSupport"
                 }
             },
             {
@@ -10610,6 +10624,13 @@ local ObjectTree = {
                                     Value = "local getrawmetatable = getrawmetatable or debug.getmetatable\n\nwax.shared.Communicator.Event:Connect(function(Type, ...)\n\tif Type ~= \"Unload\" then\n\t\treturn\n\tend\n\n\tlocal gameMetatable = getrawmetatable(game)\n\n\tif wax.shared.ExecutorSupport[\"oth\"].IsWorking then\n\t\tpcall(oth.unhook, gameMetatable.__namecall)\n\t\tpcall(oth.unhook, gameMetatable.__newindex)\n\telse\n\t\tif wax.shared.ExecutorSupport[\"restorefunction\"].IsWorking and not wax.shared.AlternativeEnabled then\n\t\t\tpcall(restorefunction, gameMetatable.__namecall)\n\t\t\tpcall(restorefunction, gameMetatable.__newindex)\n\t\telse\n\t\t\twax.shared.Hooking.HookMetaMethod(game, \"__namecall\", wax.shared.NamecallHook)\n\t\t\twax.shared.Hooking.HookMetaMethod(game, \"__newindex\", wax.shared.NewIndexHook)\n\t\tend\n\tend\n\n\tfor Function, Original in pairs(wax.shared.Hooks) do\n\t\tif wax.shared.ExecutorSupport[\"oth\"].IsWorking then\n\t\t\ttask.spawn(pcall, oth.unhook, Function)\n\t\telseif wax.shared.ExecutorSupport[\"restorefunction\"].IsWorking then\n\t\t\ttask.spawn(pcall, wax.shared.restorefunction, Function)\n\t\telse\n\t\t\tpcall(wax.shared.Hooking.HookFunction, Function, Original)\n\t\tend\n\tend\n\n\ttask.defer(function()\n\t\tgetgenv().NovaInitialized = false\n\tend)\nend)\n"
                                 }
                             }
+                        }
+                    },
+                    {
+                        14,
+                        2,
+                        {
+                            "Init"
                         }
                     },
                     {
@@ -10668,13 +10689,6 @@ local ObjectTree = {
                                 }
                             }
                         }
-                    },
-                    {
-                        14,
-                        2,
-                        {
-                            "Init"
-                        }
                     }
                 }
             }
@@ -10687,33 +10701,33 @@ local LineOffsets = {
     8,
     359,
     [17] = 810,
+    [34] = 3029,
+    [21] = 961,
+    [39] = 1592,
+    [36] = 1642,
+    [43] = 1884,
+    [41] = 2436,
+    [35] = 2216,
+    [19] = 2285,
+    [31] = 9252,
+    [22] = 2009,
     [40] = 879,
-    [21] = 2729,
-    [39] = 1216,
-    [36] = 1266,
-    [43] = 2323,
-    [22] = 2116,
-    [35] = 1833,
-    [19] = 1902,
-    [31] = 9238,
-    [41] = 1981,
-    [28] = 1508,
-    [12] = 2444,
-    [38] = 961,
-    [29] = 3360,
-    [24] = 3412,
-    [33] = 3432,
-    [44] = 3621,
-    [37] = 3549,
-    [34] = 3919,
-    [45] = 4067,
-    [42] = 4407,
-    [13] = 4536,
-    [25] = 4782,
-    [26] = 4936,
-    [46] = 5018,
-    [14] = 1660,
-    [27] = 10145
+    [12] = 2744,
+    [38] = 3249,
+    [29] = 3177,
+    [24] = 3229,
+    [28] = 3504,
+    [44] = 3656,
+    [37] = 2364,
+    [33] = 3954,
+    [45] = 4071,
+    [42] = 4411,
+    [13] = 4540,
+    [25] = 4786,
+    [26] = 4940,
+    [46] = 5022,
+    [14] = 2571,
+    [27] = 10159
 }
 
 -- Misc AOT variable imports

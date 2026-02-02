@@ -101,6 +101,13 @@ local ScreenDPIScale = Interface.New("UIScale", {
 		Visible = false, -- Start hidden for loading screen
 	
 		MainUICorner,
+		
+		["UIStroke"] = {
+			ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+			Color = Color3.fromRGB(30, 30, 30),
+			Thickness = 1,
+		},
+		
 		Parent = ScreenGui,
 	})
 
@@ -4205,12 +4212,15 @@ end))
 		
 		LoadingScreen.show()
 		
-		-- Apply theme to main components before showing
-		MainFrame.BackgroundColor3 = Constants.Colors.Background.Primary
+		-- Apply theme to all main components before showing
 		local isNova = savedTheme == "Nova"
-		if isNova then
-			MainFrame.UIStroke.Color = Constants.Colors.Accent.Primary
-		end
+		local borderColor = if isNova then Constants.Colors.Accent.Primary else Constants.Colors.Border.Primary
+		
+		MainFrame.BackgroundColor3 = Constants.Colors.Background.Primary
+		MainFrame.UIStroke.Color = borderColor
+		TopBar.BackgroundColor3 = Constants.Colors.Border.Primary
+		SettingsFrame.UIStroke.Color = borderColor
+		SearchFrame.UIStroke.Color = borderColor
 		
 		MainFrame.Visible = true
 	end)
