@@ -606,7 +606,7 @@ wax.shared.ReplayCallInfo = function(CallInfo: CallInfo)
 				return
 			end
 
-			Callback(table.unpack(CallInfo.Arguments, 1, CallInfo.Arguments.n))
+			Callback(table.unpack(CallInfo.Arguments))
 			return
 		end
 
