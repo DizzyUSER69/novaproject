@@ -23,6 +23,8 @@ local Helper = require(UIUtils.Helper)
 
 local Resize = require(UIUtils.Resize)
 local Drag = require(UIUtils.Drag)
+local LoadingScreen = require(UIUtils.LoadingScreen)
+local Constants = require(UIUtils.Constants)
 
 local PaginationHelper = Pagination.new({
 	ItemsPerPage = wax.shared.SaveManager:GetState("MaxItemPerPages", 20),
@@ -90,16 +92,24 @@ local MainUICorner = Interface.New("UICorner", {
 	CornerRadius = UDim.new(0, 6),
 })
 
-local MainFrame = Interface.New("Frame", {
-	AnchorPoint = Vector2.new(0.5, 0.5),
-	BackgroundColor3 = Color3.fromRGB(15, 15, 15),
-	Position = UDim2.fromScale(0.5, 0.5),
-	Size = UDim2.fromOffset(640, 420),
-	ZIndex = 0,
+	local MainFrame = Interface.New("Frame", {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		BackgroundColor3 = Constants.Colors.Background.Primary,
+		Position = UDim2.fromScale(0.5, 0.5),
+		Size = UDim2.fromOffset(640, 420),
+		ZIndex = 0,
+		Visible = false,
 
-	MainUICorner,
-	Parent = ScreenGui,
-})
+		MainUICorner,
+		
+		["UIStroke"] = {
+			ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+			Color = Constants.Colors.Border.Primary,
+			Thickness = 1,
+		},
+		
+		Parent = ScreenGui,
+	})
 
 local ShowButton = Interface.New("TextButton", {
 	AnchorPoint = Vector2.new(0.5, 0),
@@ -3015,22 +3025,22 @@ local LeftList = Interface.New("Frame", {
 	},
 })
 
--- Tabs
-local RemoteTabContainer = Interface.New("Frame", {
-	BackgroundColor3 = Color3.fromRGB(25, 25, 25),
-	Size = UDim2.new(1, 0, 0, 30),
-	Parent = LeftList,
+	-- Tabs
+	local TopBar = Interface.New("Frame", {
+		BackgroundColor3 = Constants.Colors.Border.Primary,
+		Size = UDim2.new(1, 0, 0, 32),
+		Parent = MainFrame,
 
-	["UICorner"] = {
-		CornerRadius = UDim.new(0, 4),
-	},
+		["UICorner"] = {
+			CornerRadius = UDim.new(0, 6),
+		},
 
-	["UIListLayout"] = {
-		FillDirection = Enum.FillDirection.Horizontal,
-		HorizontalAlignment = Enum.HorizontalAlignment.Left,
-		HorizontalFlex = Enum.UIFlexAlignment.Fill,
-	},
-})
+		["UIListLayout"] = {
+			FillDirection = Enum.FillDirection.Horizontal,
+			HorizontalAlignment = Enum.HorizontalAlignment.Left,
+			HorizontalFlex = Enum.UIFlexAlignment.Fill,
+		},
+	})
 
 -- Remote List
 local RemoteListWrapper = Interface.New("Frame", {
@@ -4159,4 +4169,9 @@ wax.shared.Connect(wax.shared.UserInputService.InputBegan:Connect(function(Input
 	end
 end))
 
-return {}
+	task.spawn(function()
+		LoadingScreen.show()
+		MainFrame.Visible = true
+	end)
+
+	return {}
