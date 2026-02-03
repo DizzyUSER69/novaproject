@@ -104,7 +104,7 @@ local MainUICorner = Interface.New("UICorner", {
 		
 		["UIStroke"] = {
 			ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-			Color = Constants.Colors.Border.Primary,
+			Color = Color3.fromRGB(30, 30, 30),
 			Thickness = 1,
 		},
 		
@@ -1588,41 +1588,13 @@ CreateSettingsCheckbox("ShowWatermark", {
 	Section = CodeGenSection,
 })
 
-	local ThemeSection = CreateSettingsSection("Theme & Visuals")
+		local ThemeSection = CreateSettingsSection("Visuals")
 
-	local function RefreshUI()
-		MainFrame.BackgroundColor3 = Constants.Colors.Background.Primary
-		TopBar.BackgroundColor3 = Constants.Colors.Border.Primary
-		
-		local isNova = wax.shared.SaveManager:GetState("Theme", "Default") == "Nova"
-		local borderColor = if isNova then Constants.Colors.Accent.Primary else Constants.Colors.Border.Primary
-		
-		MainFrame.UIStroke.Color = borderColor
-		SettingsFrame.UIStroke.Color = borderColor
-		SearchFrame.UIStroke.Color = borderColor
-		
-		wax.shared.Sonner.success("Theme applied successfully!")
-	end
-
-	CreateSettingsDropdown("Theme", {
-		Text = "UI Theme",
-		Values = {
-			"Default",
-			"Nova"
-		},
-		Default = "Default",
-		Section = ThemeSection,
-		Callback = function(value)
-			Constants.ApplyTheme(value)
-			RefreshUI()
-		end
-	})
-
-	CreateSettingsCheckbox("CustomNotifications", {
-		Text = "Custom Notifications",
-		Default = true,
-		Section = ThemeSection,
-	})
+		CreateSettingsCheckbox("CustomNotifications", {
+			Text = "Custom Notifications",
+			Default = true,
+			Section = ThemeSection,
+		})
 
 	local MainSection = CreateSettingsSection("Main")
 	
@@ -3062,10 +3034,10 @@ local LeftList = Interface.New("Frame", {
 })
 
 	-- Tabs
-	local TopBar = Interface.New("Frame", {
-		BackgroundColor3 = Constants.Colors.Border.Primary,
-		Size = UDim2.new(1, 0, 0, 32),
-		Parent = MainFrame,
+		local TopBar = Interface.New("Frame", {
+			BackgroundColor3 = Color3.fromRGB(25, 25, 25),
+			Size = UDim2.new(1, 0, 0, 32),
+			Parent = MainFrame,
 
 		["UICorner"] = {
 			CornerRadius = UDim.new(0, 6),
@@ -4206,20 +4178,7 @@ wax.shared.Connect(wax.shared.UserInputService.InputBegan:Connect(function(Input
 end))
 
 	task.spawn(function()
-		local savedTheme = wax.shared.SaveManager:GetState("Theme", "Default")
-		Constants.ApplyTheme(savedTheme)
-		
 		LoadingScreen.show()
-		
-		local isNova = savedTheme == "Nova"
-		local borderColor = if isNova then Constants.Colors.Accent.Primary else Constants.Colors.Border.Primary
-		
-		MainFrame.BackgroundColor3 = Constants.Colors.Background.Primary
-		MainFrame.UIStroke.Color = borderColor
-		TopBar.BackgroundColor3 = Constants.Colors.Border.Primary
-		SettingsFrame.UIStroke.Color = borderColor
-		SearchFrame.UIStroke.Color = borderColor
-		
 		MainFrame.Visible = true
 	end)
 
