@@ -1,5 +1,5 @@
 --[[
-	Main Window Logic for nova, all UI elements are created and managed here.
+	Main Window Logic for cobalt, all UI elements are created and managed here.
 ]]
 
 local AnticheatData = require(script.Parent.Utils.Anticheats.Main)
@@ -23,8 +23,6 @@ local Helper = require(UIUtils.Helper)
 
 local Resize = require(UIUtils.Resize)
 local Drag = require(UIUtils.Drag)
-local LoadingScreen = require(UIUtils.LoadingScreen)
-local Constants = require(UIUtils.Constants)
 
 local PaginationHelper = Pagination.new({
 	ItemsPerPage = wax.shared.SaveManager:GetState("MaxItemPerPages", 20),
@@ -73,10 +71,10 @@ wax.shared.GetDPIScale = GetDPIScale
 -- ContentProvider PreloadAsync bypass
 Images = ImageFetcher.GetRemoteImages(Images)
 
-local NovaLogo = ImageFetcher.GetImage("Logo")
+local CobaltLogo = ImageFetcher.GetImage("Logo")
 
 local ScreenGui = Interface.New("ScreenGui", {
-	Name = "Nova",
+	Name = "Cobalt",
 	ResetOnSpawn = false,
 	Parent = Interface.GetScreenParent(),
 	ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
@@ -88,28 +86,20 @@ local ScreenDPIScale = Interface.New("UIScale", {
 	Scale = GetDPIScale(),
 })
 
-	local MainUICorner = Interface.New("UICorner", {
-		CornerRadius = UDim.new(0, 6),
-	})
+local MainUICorner = Interface.New("UICorner", {
+	CornerRadius = UDim.new(0, 6),
+})
 
-	local MainFrame = Interface.New("Frame", {
-		AnchorPoint = Vector2.new(0.5, 0.5),
-		BackgroundColor3 = Color3.fromRGB(15, 15, 15),
-		Position = UDim2.fromScale(0.5, 0.5),
-		Size = UDim2.fromOffset(640, 420),
-		ZIndex = 0,
-		Visible = false, -- Start hidden for loading screen
-	
-		MainUICorner,
-		
-		["UIStroke"] = {
-			ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-			Color = Color3.fromRGB(30, 30, 30),
-			Thickness = 1,
-		},
-		
-		Parent = ScreenGui,
-	})
+local MainFrame = Interface.New("Frame", {
+	AnchorPoint = Vector2.new(0.5, 0.5),
+	BackgroundColor3 = Color3.fromRGB(15, 15, 15),
+	Position = UDim2.fromScale(0.5, 0.5),
+	Size = UDim2.fromOffset(640, 420),
+	ZIndex = 0,
+
+	MainUICorner,
+	Parent = ScreenGui,
+})
 
 local ShowButton = Interface.New("TextButton", {
 	AnchorPoint = Vector2.new(0.5, 0),
@@ -122,7 +112,7 @@ local ShowButton = Interface.New("TextButton", {
 	["ImageLabel"] = {
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		BackgroundTransparency = 1,
-		Image = NovaLogo,
+		Image = CobaltLogo,
 		Position = UDim2.fromScale(0.5, 0.5),
 		Size = UDim2.new(1, -10, 1, -10),
 	},
@@ -162,7 +152,7 @@ local ContextMenu = Interface.New("Frame", {
 	Visible = false,
 
 	["UICorner"] = {
-		CornerRadius = UDim.new(0, 10),
+		CornerRadius = UDim.new(0, 6),
 	},
 
 	["UIListLayout"] = {
@@ -203,7 +193,7 @@ local function CreateContextMenu(Parent: GuiObject, Options: {}, MouseOnCursorPo
 				Text = "",
 
 				["UICorner"] = {
-					CornerRadius = UDim.new(0, 10),
+					CornerRadius = UDim.new(0, 6),
 				},
 
 				["UIPadding"] = {
@@ -589,7 +579,6 @@ local SettingsScrollingFrame = Interface.New("ScrollingFrame", {
 })
 
 local function CreateSettingsSection(SectionName: string)
-			table.insert(AllUIComponents, Section)
 	local Section = Interface.New("Frame", {
 		AutomaticSize = Enum.AutomaticSize.Y,
 		BackgroundTransparency = 1,
@@ -616,7 +605,6 @@ local function CreateSettingsSection(SectionName: string)
 end
 
 local function CreateSettingsButton(Text: string, Callback: () -> (), Section: Frame, TextSize: number?)
-			table.insert(AllUIComponents, Button)
 	local Button = Interface.New("TextButton", {
 		BackgroundColor3 = Color3.fromRGB(15, 15, 15),
 		Size = UDim2.new(1, 0, 0, 24),
@@ -625,7 +613,7 @@ local function CreateSettingsButton(Text: string, Callback: () -> (), Section: F
 		Parent = Section,
 
 		["UICorner"] = {
-			CornerRadius = UDim.new(0, 8),
+			CornerRadius = UDim.new(0, 4),
 		},
 
 		["UIStroke"] = {
@@ -652,8 +640,7 @@ local function CreateSettingsButton(Text: string, Callback: () -> (), Section: F
 	return Button
 end
 
-local function CreateSettingsCheckbox
-			table.insert(AllUIComponents, CheckboxUI)(
+local function CreateSettingsCheckbox(
 	Idx: string,
 	Options: {
 		Text: string,
@@ -771,8 +758,7 @@ local function CreateSettingsCheckbox
 	return Checkbox
 end
 
-local function CreateSettingsTextBox
-			table.insert(AllUIComponents, Container)(
+local function CreateSettingsTextBox(
 	Idx: string,
 	Options: {
 		Text: string,
@@ -877,7 +863,7 @@ local function CreateSettingsTextBox
 		Parent = Container,
 
 		["UICorner"] = {
-			CornerRadius = UDim.new(0, 8),
+			CornerRadius = UDim.new(0, 4),
 		},
 
 		["UIStroke"] = {
@@ -944,8 +930,7 @@ local function CreateSettingsTextBox
 	return TextSetting
 end
 
-local function CreateSettingsDropdown
-			table.insert(AllUIComponents, DropdownUI)(
+local function CreateSettingsDropdown(
 	Idx: string,
 	Options: {
 		Multi: boolean?,
@@ -1007,7 +992,7 @@ local function CreateSettingsDropdown
 		Parent = DropdownUI,
 
 		["UICorner"] = {
-			CornerRadius = UDim.new(0, 8),
+			CornerRadius = UDim.new(0, 4),
 		},
 
 		["UIStroke"] = {
@@ -1245,8 +1230,7 @@ local function CreateSettingsDropdown
 	return Dropdown
 end
 
-local function CreateSettingsRemoteList
-			table.insert(AllUIComponents, RemoteListContainer)(
+local function CreateSettingsRemoteList(
 	Idx: string,
 	Options: {
 		Text: string,
@@ -1324,7 +1308,7 @@ local function CreateSettingsRemoteList
 				Parent = RemoteListContainer,
 
 				["UICorner"] = {
-					CornerRadius = UDim.new(0, 8),
+					CornerRadius = UDim.new(0, 4),
 				},
 
 				["UIStroke"] = {
@@ -1465,7 +1449,7 @@ if #wax.shared.ExecutorSupport.FailedChecks.NonEssential > 0 then
 		Parent = SettingsScrollingFrame,
 
 		["UICorner"] = {
-			CornerRadius = UDim.new(0, 8),
+			CornerRadius = UDim.new(0, 4),
 		},
 
 		["UIStroke"] = {
@@ -1495,7 +1479,7 @@ if #wax.shared.ExecutorSupport.FailedChecks.NonEssential > 0 then
 	local NoticeTitleInfoSeperator = CreatePaddingText(4)
 
 	Interface.New("TextLabel", {
-		Text = `<font size="16"><b>DETECTION NOTICE ⚠️</b></font>\n{NoticeTitleInfoSeperator}Nova can get detected because your executor does not support the following functions/libraries:`,
+		Text = `<font size="16"><b>DETECTION NOTICE ⚠️</b></font>\n{NoticeTitleInfoSeperator}Cobalt can get detected because your executor does not support the following functions/libraries:`,
 		TextSize = 15,
 		Size = UDim2.fromScale(1, 0),
 		AutomaticSize = Enum.AutomaticSize.Y,
@@ -1589,68 +1573,14 @@ CreateSettingsCheckbox("PreferBufferFromString", {
 })
 
 CreateSettingsCheckbox("ShowWatermark", {
-	Text = "Show Nova Watermark",
+	Text = "Show Cobalt Watermark",
 	Default = true,
 	Section = CodeGenSection,
 })
 
-	local ThemeSection = CreateSettingsSection("Theme & Visuals")
+local MainSection = CreateSettingsSection("Main")
 
-local AllUIComponents = {}
-
-local function RefreshUI()
-			MainFrame.BackgroundColor3 = Constants.Colors.Background.Primary
-			TopBar.BackgroundColor3 = Constants.Colors.Border.Primary
-			
-			-- Update all strokes if theme is Nova
-			local isNova = wax.shared.SaveManager:GetState("Theme", "Default") == "Nova"
-			local borderColor = if isNova then Constants.Colors.Accent.Primary else Constants.Colors.Border.Primary
-
-			for _, component in pairs(AllUIComponents) do
-				if component.UIStroke then
-					component.UIStroke.Color = borderColor
-				end
-				if component.ClassName == 'Frame' or component.ClassName == 'TextButton' or component.ClassName == 'ImageButton' then
-					component.BackgroundColor3 = Constants.Colors.Background.Primary
-				end
-			end
-			
-			MainFrame.UIStroke.Color = borderColor
-			SettingsFrame.UIStroke.Color = borderColor
-			SearchFrame.UIStroke.Color = borderColor
-
-			-- Refresh other containers
-			RemoteTabContainer.BackgroundColor3 = Constants.Colors.Border.Primary
-			RemoteListWrapper.BackgroundColor3 = Constants.Colors.Border.Primary
-			RemoteListLine.BackgroundColor3 = Constants.Colors.Border.Primary
-			LogsPagination.BackgroundColor3 = Constants.Colors.Border.Primary
-			
-			wax.shared.Sonner.success("Theme applied successfully!")
-		end
-
-	CreateSettingsDropdown("Theme", {
-		Text = "UI Theme",
-			Values = {
-				"Dark",
-				"Nova"
-			},
-			Default = "Dark",
-		Section = ThemeSection,
-		Callback = function(value)
-			Constants.ApplyTheme(value)
-			RefreshUI()
-		end
-	})
-
-	CreateSettingsCheckbox("CustomNotifications", {
-		Text = "Custom Notifications",
-		Default = true,
-		Section = ThemeSection,
-	})
-
-	local MainSection = CreateSettingsSection("Main")
-	
-	CreateSettingsDropdown("WindowDPIScale", {
+CreateSettingsDropdown("WindowDPIScale", {
 	Text = "DPI Scale",
 	Values = {
 		"50%",
@@ -1834,7 +1764,7 @@ CreateSettingsCheckbox("EnableLogging", {
 		end
 
 		local LogConnection = wax.shared.SetupLoggingConnection()
-		SessionLog.Text = `Current Session Log: <b>{wax.shared.LogFileName:gsub("Nova/Logs/", "")}</b>`
+		SessionLog.Text = `Current Session Log: <b>{wax.shared.LogFileName:gsub("Cobalt/Logs/", "")}</b>`
 		wax.shared.LogConnection = wax.shared.Connect(wax.shared.Communicator.Event:Connect(LogConnection))
 
 		wax.shared.Sonner.success("Successfully enabled file logging")
@@ -1843,7 +1773,7 @@ CreateSettingsCheckbox("EnableLogging", {
 
 SessionLog = Interface.New("TextLabel", {
 	Text = `Current Session Log: <b>{wax.shared.Settings.EnableLogging.Value and wax.shared.LogFileName:gsub(
-		"Nova/Logs/",
+		"Cobalt/Logs/",
 		""
 	) or "Not Logging"}</b>`,
 	TextSize = 16,
@@ -1856,7 +1786,7 @@ SessionLog = Interface.New("TextLabel", {
 })
 
 Interface.New("TextLabel", {
-	Text = `Logs Path: <b>Nova/Logs</b>`,
+	Text = `Logs Path: <b>Cobalt/Logs</b>`,
 	TextSize = 16,
 	Size = UDim2.fromScale(1, 0),
 	AutomaticSize = Enum.AutomaticSize.Y,
@@ -1901,7 +1831,7 @@ local CopySessionName = CreateSettingsButton("Copy Session Name", function()
 		return
 	end
 
-	local ActualLogFileName = wax.shared.LogFileName:gsub("Nova/Logs/", "")
+	local ActualLogFileName = wax.shared.LogFileName:gsub("Cobalt/Logs/", "")
 	local Success, Error = pcall(setclipboard, ActualLogFileName)
 
 	if not Success then
@@ -1950,7 +1880,7 @@ local ExportLogsButton = CreateSettingsButton("Export Logs to HTML", function()
 		)
 
 		--// Export \\--
-		local FileName = `Nova_Session_{os.time()}.html`
+		local FileName = `Cobalt_Session_{os.time()}.html`
 		writefile(
 			FileName,
 			SessionExporter:ExportSessionToHTML(Events, StringMap, SessionData)
@@ -1970,11 +1900,11 @@ local CreditsSection = CreateSettingsSection("Credits")
 local Credits = {
 	{
 		Credit = "upio",
-		Description = "Nova Developer",
+		Description = "Cobalt Developer",
 	},
 	{
 		Credit = "deivid",
-		Description = "Nova Developer",
+		Description = "Cobalt Developer",
 	},
 	{
 		Credit = "shadcn",
@@ -2172,7 +2102,7 @@ local function CreateTabContent()
 		BackgroundColor3 = Color3.fromRGB(0, 0, 0),
 
 		["UICorner"] = {
-			CornerRadius = UDim.new(0, 10),
+			CornerRadius = UDim.new(0, 6),
 		},
 
 		["UIPadding"] = {
@@ -2320,7 +2250,7 @@ local function CreateInfoDropdownButton(Icon: string, Title: string, Options: {}
 		Text = "",
 
 		["UICorner"] = {
-			CornerRadius = UDim.new(0, 10),
+			CornerRadius = UDim.new(0, 6),
 		},
 
 		["UIPadding"] = {
@@ -2661,7 +2591,7 @@ local SearchFrame = Interface.New("TextButton", {
 	Parent = ModalBackground,
 
 	["UICorner"] = {
-		CornerRadius = UDim.new(0, 10),
+		CornerRadius = UDim.new(0, 6),
 	},
 
 	["UIStroke"] = {
@@ -2757,7 +2687,7 @@ local FilterAllButton = Interface.New("TextButton", {
 	Parent = SearchFilterList,
 
 	["UICorner"] = {
-		CornerRadius = UDim.new(0, 8),
+		CornerRadius = UDim.new(0, 4),
 	},
 
 	["UIPadding"] = {
@@ -2788,7 +2718,7 @@ for Order, ClassName in pairs(ClassOrder) do
 		Parent = SearchFilterList,
 
 		["UICorner"] = {
-			CornerRadius = UDim.new(0, 8),
+			CornerRadius = UDim.new(0, 4),
 		},
 
 		["UIPadding"] = {
@@ -2888,7 +2818,7 @@ local function CreateSearchResult(Instance: Instance, Type: string)
 		Text = "",
 
 		["UICorner"] = {
-			CornerRadius = UDim.new(0, 10),
+			CornerRadius = UDim.new(0, 6),
 		},
 
 		["UIPadding"] = {
@@ -2950,19 +2880,19 @@ local TopBar = Interface.New("Frame", {
 	MainUICorner,
 	Parent = MainFrame,
 
-		["TextLabel"] = {
-			Text = "Nova",
-			TextSize = 14,
-			Position = UDim2.fromOffset(0, 1),
-			Size = UDim2.new(1, 0, 1, -1),
-		},
+	["TextLabel"] = {
+		Text = "Cobalt",
+		TextSize = 18,
+		Position = UDim2.fromOffset(0, 1),
+		Size = UDim2.new(1, 0, 1, -1),
+	},
 
 	["ImageLabel"] = {
 		AnchorPoint = Vector2.new(0, 0.5),
 		Position = UDim2.new(0, 6, 0.5, 0),
 		Size = UDim2.new(1, -12, 1, -12),
 		SizeConstraint = Enum.SizeConstraint.RelativeYY,
-		Image = NovaLogo,
+		Image = CobaltLogo,
 	},
 })
 Interface.HideCorner(TopBar, UDim2.fromScale(1, 0.5), Vector2.yAxis)
@@ -3092,7 +3022,7 @@ local RemoteTabContainer = Interface.New("Frame", {
 	Parent = LeftList,
 
 	["UICorner"] = {
-		CornerRadius = UDim.new(0, 8),
+		CornerRadius = UDim.new(0, 4),
 	},
 
 	["UIListLayout"] = {
@@ -3111,7 +3041,7 @@ local RemoteListWrapper = Interface.New("Frame", {
 	Parent = LeftList,
 
 	["UICorner"] = {
-		CornerRadius = UDim.new(0, 8),
+		CornerRadius = UDim.new(0, 4),
 	},
 
 	["UIListLayout"] = {
@@ -3357,7 +3287,7 @@ function CreatePaginationEllipsis(Order: number, Visible: boolean)
 			Parent = Visible and LogsPagination or nil,
 
 			["UICorner"] = {
-				CornerRadius = UDim.new(0, 8),
+				CornerRadius = UDim.new(0, 4),
 			},
 		}),
 	}
@@ -3421,7 +3351,7 @@ function CreatePaginationButton(Order: number, Active: boolean, Visible: boolean
 			Parent = Visible and LogsPagination or nil,
 
 			["UICorner"] = {
-				CornerRadius = UDim.new(0, 8),
+				CornerRadius = UDim.new(0, 4),
 			},
 		}),
 	}
@@ -3515,7 +3445,7 @@ function CreateRemoteTab(TabName: string, Active: boolean, Logs)
 		Parent = RemoteTabContainer,
 
 		["UICorner"] = {
-			CornerRadius = UDim.new(0, 8),
+			CornerRadius = UDim.new(0, 4),
 		},
 	})
 
@@ -3556,7 +3486,7 @@ function CreateLogButton(Log): (TextButton, TextLabel, TextLabel)
 		},
 
 		["UICorner"] = {
-			CornerRadius = UDim.new(0, 8),
+			CornerRadius = UDim.new(0, 4),
 		},
 
 		["UIPadding"] = {
@@ -3691,7 +3621,7 @@ function CreateArgHolder(Index: number, Value: any, Parent: GuiObject)
 		Size = UDim2.new(1, 0, 0, 27),
 
 		["UICorner"] = {
-			CornerRadius = UDim.new(0, 8),
+			CornerRadius = UDim.new(0, 4),
 		},
 
 		["UIPadding"] = {
@@ -3799,36 +3729,21 @@ function CreateCallFrame(CallInfo)
 					end
 				end,
 			},
-				{
-					Text = "Copy Calling Code",
-					Icon = "forward",
-					Callback = function()
-						local Code = CodeGen:BuildCallCode(CallInfo, CurrentTab.Name)
-						local Success, Error = pcall(setclipboard, Code)
+			{
+				Text = "Copy Intercept Code",
+				Icon = "shield-alert",
+				Callback = function()
+					local Code = CodeGen:BuildHookCode(CallInfo, CurrentTab.Name)
+					local Success, Error = pcall(setclipboard, Code)
 
-						if Success then
-							wax.shared.Sonner.success("Copied code to clipboard")
-						else
-							wax.shared.Sonner.error("Failed to copy code to clipboard")
-							warn("Failed to copy code to clipboard", Error)
-						end
-					end,
-				},
-				{
-					Text = "Copy Intercept Code",
-					Icon = "shield-alert",
-					Callback = function()
-						local Code = CodeGen:BuildHookCode(CallInfo, CurrentTab.Name)
-						local Success, Error = pcall(setclipboard, Code)
-
-						if Success then
-							wax.shared.Sonner.success("Copied code to clipboard")
-						else
-							wax.shared.Sonner.error("Failed to copy code to clipboard")
-							warn("Failed to copy code to clipboard", Error)
-						end
-					end,
-				},
+					if Success then
+						wax.shared.Sonner.success("Copied code to clipboard")
+					else
+						wax.shared.Sonner.error("Failed to copy code to clipboard")
+						warn("Failed to copy code to clipboard", Error)
+					end
+				end,
+			},
 			{
 				Text = "Copy Remote Path",
 				Icon = "package-search",
@@ -4244,16 +4159,4 @@ wax.shared.Connect(wax.shared.UserInputService.InputBegan:Connect(function(Input
 	end
 end))
 
-		task.spawn(function()
-				local savedTheme = wax.shared.SaveManager:GetState("Theme", "Dark")
-			Constants.ApplyTheme(savedTheme)
-			
-			LoadingScreen.show()
-			
-			-- Apply theme to all main components before showing
-			RefreshUI()
-			
-			MainFrame.Visible = true
-		end)
-
-	return {}
+return {}
